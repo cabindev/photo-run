@@ -48,3 +48,6 @@ next-env.d.ts
 
 # โมเดลใบหน้า (~39MB) — โหลดด้วย npm run models
 /models/*.onnx
+
+# Passenger restart.txt
+/tmp/
