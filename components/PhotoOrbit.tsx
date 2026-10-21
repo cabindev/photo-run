@@ -23,9 +23,10 @@ const TITLE_OUT = [21.2, 22.4] // ชื่องานจางหาย
 const EMERGE_AT = 21.8 //  การ์ดออกจากกลางเป็นแถบเลนส์
 const STRIP_AT = 24
 const LAG = 1.1 //          การ์ดใบสุดท้ายออกตัวช้ากว่าใบแรกกี่วินาที
-const STRIP_SPEED = 0.32 // การ์ดต่อวินาที
+const STRIP_SPEED = 0.42 // การ์ดต่อวินาที
 
-type Pose = { x: number; y: number; s: number; r: number; o: number }
+// z = ยื่นเข้าหาผู้ดู (px), ry = หมุนรอบแกนตั้ง (องศา) — ใช้เฉพาะแถบเลนส์แบบ cover flow
+type Pose = { x: number; y: number; z: number; ry: number; s: number; r: number; o: number }
 
 const ease = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
@@ -54,18 +55,18 @@ export default function PhotoOrbit({ urls, children }: { urls: string[]; childre
         // การ์ดใหญ่เต็มตา — จำกัดด้วยทั้งกว้างและสูงของจอ ตอนเป็นตารางจะล้นขอบจอเล็กน้อย
         const cardSize = () => Math.max(120, Math.min(w * 0.46, h * 0.42))
 
-        // 1) แถบเลนส์ — x เลื่อนต่อเนื่อง วนรอบเมื่อหลุดขอบ ใบกลางขยาย
+        // 1) แถบเลนส์แบบ cover flow — x เลื่อนต่อเนื่อง วนรอบเมื่อหลุดขอบ ใบกลางขยายและยื่นออกมา
+        //    การ์ดข้างๆ หมุนหันเข้าหากลาง ใบไหนบังใบไหนให้เบราว์เซอร์คำนวณจากตำแหน่ง 3 มิติจริง
+        //    (ไม่ตั้ง z-index เอง) — ส่วนที่ซ้อนกันจึงเปลี่ยนต่อเนื่องตอนผ่านกลาง ไม่สลับชั้นแบบกระโดด
         const stripPose = (i: number, t: number): Pose => {
             const size = cardSize()
-            // ระยะห่างพอดีกับขนาดที่ขยายแล้ว — การ์ดไม่ซ้อนกัน จึงไม่มีจังหวะสลับชั้นกระโดดตอนผ่านกลางจอ
-            const spacing = size * 1.08
+            const spacing = size * 0.72
             let p = (((i - t * STRIP_SPEED) % n) + n) % n
             if (p > n / 2) p -= n
             const x = p * spacing
-            // เลนส์กว้าง — ขนาดเปลี่ยนช้าๆ ตลอดทาง ไม่ใช่ขยายพรวดตอนใกล้กลาง
-            const lens = Math.exp(-((x / (spacing * 1.6)) ** 2))
+            const lens = Math.exp(-((x / (spacing * 1.3)) ** 2))
             const edge = clamp01((Math.abs(x) - w * 0.38) / (w * 0.14))
-            return { x, y: 0, s: 0.82 + 0.3 * lens, r: 0, o: 1 - edge }
+            return { x, y: 0, z: lens * size * 0.45, ry: -38 * Math.tanh(p * 0.9), s: 0.7 + 0.55 * lens, r: 0, o: 1 - edge }
         }
 
         // 2) ตารางเอียงแบบเหลื่อม — คอลัมน์คี่เลื่อนลงครึ่งช่อง ทั้งตารางลอยช้าๆ
@@ -83,7 +84,7 @@ export default function PhotoOrbit({ urls, children }: { urls: string[]; childre
             ;[x, y] = [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)]
             x += Math.sin(t * 0.35) * cell * 0.25
             y += Math.cos(t * 0.28) * cell * 0.18
-            return { x, y, s: 1, r: -12, o: 1 }
+            return { x, y, z: 0, ry: 0, s: 1, r: -12, o: 1 }
         }
 
         const ramp = (local: number, from: number, to: number) => ease(clamp01((local - from) / (to - from)))
@@ -109,6 +110,8 @@ export default function PhotoOrbit({ urls, children }: { urls: string[]; childre
                 const base: Pose = {
                     x: lerp(a.x, b.x, k),
                     y: lerp(a.y, b.y, k),
+                    z: lerp(a.z, b.z, k),
+                    ry: lerp(a.ry, b.ry, k),
                     s: lerp(a.s, b.s, k),
                     r: lerp(a.r, b.r, k),
                     o: lerp(a.o, b.o, k),
@@ -116,6 +119,8 @@ export default function PhotoOrbit({ urls, children }: { urls: string[]; childre
                 const pose: Pose = {
                     x: lerp(base.x, 0, c),
                     y: lerp(base.y, 0, c),
+                    z: lerp(base.z, 0, c),
+                    ry: lerp(base.ry, 0, c),
                     s: lerp(base.s, 0.25, c),
                     r: lerp(base.r, 0, c),
                     o: dimmed ? 0.25 : lerp(base.o, 0, c),
@@ -123,9 +128,9 @@ export default function PhotoOrbit({ urls, children }: { urls: string[]; childre
                 const size = cardSize()
                 card.style.width = `${size}px`
                 card.style.height = `${size * 1.18}px`
-                card.style.transform = `translate(-50%, -50%) translate3d(${pose.x}px, ${pose.y}px, 0) rotate(${pose.r}deg) scale(${pose.s})`
+                // + i*0.05px กันการ์ดที่อยู่ระนาบเดียวกัน (ตาราง/ตอนรวมกลาง) กะพริบแย่งกันแสดง
+                card.style.transform = `translate(-50%, -50%) translate3d(${pose.x}px, ${pose.y}px, ${pose.z + i * 0.05}px) rotateY(${pose.ry}deg) rotate(${pose.r}deg) scale(${pose.s})`
                 card.style.opacity = String(pose.o)
-                card.style.zIndex = String(Math.round(pose.s * 100))
             }
         }
 
