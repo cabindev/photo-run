@@ -37,8 +37,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                         <Link href="/" className="font-bold tracking-tight">
                             <span className="bg-move px-1.5 py-0.5 rounded-md mr-1">RUN</span>PHOTO
                         </Link>
-                        <nav className="flex items-center gap-4 text-sm text-ink-soft">
-                            <a href={MAIN_SITE_URL} className="hover:text-ink">← runludtong.com</a>
+                        <nav className="flex items-center gap-3 sm:gap-4 text-sm text-ink-soft whitespace-nowrap">
+                            <a href={MAIN_SITE_URL} className="hover:text-ink">
+                                ← runludtong<span className="hidden sm:inline">.com</span>
+                            </a>
                             {admin && <Link href="/admin" className="hover:text-ink">จัดการงาน</Link>}
                             {admin && <span className="hidden sm:inline text-ink-mute truncate max-w-[30vw]">{admin}</span>}
                             {admin ? (
