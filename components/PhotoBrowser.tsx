@@ -137,7 +137,7 @@ export default function PhotoBrowser({
                     )}
 
                     <div className="flex items-center gap-3 flex-wrap">
-                        <button disabled={loading} className="h-11 px-6 rounded-xl bg-ink text-paper text-sm font-semibold disabled:opacity-50">
+                        <button disabled={loading} className="h-11 px-6 rounded-xl bg-navy text-white hover:bg-navy-deep text-sm font-semibold disabled:opacity-50">
                             {loading ? "กำลังค้นหา..." : "ค้นหารูป"}
                         </button>
                         {results && (

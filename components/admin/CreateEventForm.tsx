@@ -45,7 +45,7 @@ export default function CreateEventForm() {
                 <input id="bibPattern" name="bibPattern" className={input} placeholder="^[MF]-?\d{3}$" />
             </div>
             <div className="sm:col-span-2 flex items-center gap-3">
-                <button disabled={pending} className="h-11 px-6 rounded-xl bg-ink text-paper text-sm font-semibold disabled:opacity-50">
+                <button disabled={pending} className="h-11 px-6 rounded-xl bg-navy text-white hover:bg-navy-deep text-sm font-semibold disabled:opacity-50">
                     {pending ? "กำลังสร้าง..." : "สร้างงาน"}
                 </button>
                 {state && <p className={`text-sm ${state.ok ? "text-lime" : "text-danger"}`}>{state.ok ? state.message : state.error}</p>}

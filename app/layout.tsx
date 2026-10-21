@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Prompt } from "next/font/google"
 import { getAdmin } from "@/lib/auth"
 import { logout } from "@/app/login/actions"
+import SiteHeader from "@/components/SiteHeader"
 import "./globals.css"
 
 const prompt = Prompt({
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-    themeColor: "#000000",
+    themeColor: "#002B5A",
     width: "device-width",
     initialScale: 1,
 }
@@ -32,10 +33,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         // suppressHydrationWarning: ส่วนขยายเบราว์เซอร์มักยัด attribute ใส่ <html>/<body> ก่อน hydrate (เหมือนเว็บสมัคร)
         <html lang="th" suppressHydrationWarning>
             <body className={`${prompt.variable} font-sans min-h-dvh flex flex-col`} suppressHydrationWarning>
-                <header className="bg-paper border-b border-line">
+                <SiteHeader>
                     <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-                        <Link href="/" className="font-bold tracking-tight">
-                            <span className="bg-move px-1.5 py-0.5 rounded-md mr-1">RUN</span>PHOTO
+                        <Link href="/" aria-label="RunLudtong Photo หน้าแรก" className="inline-flex items-center gap-2">
+                            {/* โลโก้เดียวกับเว็บสมัคร (public/runludtong-logo.svg) — ระบุขนาดจริงกัน layout กระโดด */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/runludtong-logo.svg" alt="RunLudtong" width={490} height={440} className="h-9 w-auto" />
+                            <span className="text-[11px] font-bold tracking-[0.16em] text-navy border-l border-line pl-2">PHOTO</span>
                         </Link>
                         <nav className="flex items-center gap-3 sm:gap-4 text-sm text-ink-soft whitespace-nowrap">
                             <a href={MAIN_SITE_URL} className="hover:text-ink">
@@ -54,7 +58,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                             )}
                         </nav>
                     </div>
-                </header>
+                </SiteHeader>
                 <main className="flex-1">{children}</main>
                 <footer className="text-center text-xs text-ink-mute py-8 px-4">
                     รูปทั้งหมดเป็นลิขสิทธิ์ของช่างภาพ · ข้อมูลใบหน้าใช้เพื่อค้นหารูปเท่านั้นและถูกลบตามกำหนด

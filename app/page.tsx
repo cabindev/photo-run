@@ -1,11 +1,11 @@
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { publicUrl } from "@/lib/blob"
-import PhotoRing from "@/components/PhotoRing"
+import PhotoOrbit from "@/components/PhotoOrbit"
 
 export const dynamic = "force-dynamic"
 
-const RING_SIZE = 16
+const RING_SIZE = 24
 
 export default async function Home() {
     const events = await prisma.event.findMany({
@@ -19,8 +19,12 @@ export default async function Home() {
     })
     const latest = events[0]
 
-    // วงแหวนหน้าแรก: สุ่มรูปที่เห็นหน้าชัดจากงานล่าสุด — สุ่มใหม่ทุกครั้งที่เปิด
-    const ring = latest
+    // รูปเคลื่อนไหวหน้าแรก: ใช้ชุดที่ทำไว้ (npm run hero — ชัด ไม่มีลายน้ำ ชุดเดิมทุกครั้งจึง cache ได้)
+    // ถ้ายังไม่ได้ทำ สุ่มรูปย่อที่เห็นหน้าชัดจากงานล่าสุดแทน
+    const heroKeys = Array.isArray(latest?.heroKeys) ? (latest.heroKeys as string[]) : null
+    const ring = heroKeys
+        ? heroKeys.map((thumbKey) => ({ thumbKey }))
+        : latest
         ? await prisma.$queryRaw<{ thumbKey: string }[]>`
             SELECT p.thumbKey FROM Photo p
             WHERE p.eventId = ${latest.id} AND p.status = 'PROCESSED' AND p.thumbKey IS NOT NULL
@@ -32,16 +36,22 @@ export default async function Home() {
 
     return (
         <>
-            {/* section 1: วงแหวนรูปเคลื่อนไหวเต็มจอ (ลบความสูง header 3.5rem) */}
-            <section className="hero-dots bg-ink text-white overflow-hidden h-[calc(100svh-3.5rem)] min-h-[420px] flex flex-col relative">
-                <p className="absolute top-5 inset-x-0 text-center text-[11px] font-semibold tracking-[0.18em] uppercase text-white/50">
-                    RunPhoto{latest && ` · ${latest.name}`}
-                </p>
-                <div className="flex-1 flex items-center justify-center min-h-0">
-                    {ringUrls.length >= 8 && <PhotoRing urls={ringUrls} size="full" />}
+            {/* section 1: รูปเคลื่อนไหวเต็มจอ — navbar ซ่อนอยู่จนกว่าจะเลื่อนลง (components/SiteHeader.tsx) */}
+            <section className="hero-dots text-white overflow-hidden h-svh min-h-[420px] flex flex-col relative">
+                <div className="flex-1 min-h-0 relative">
+                    {ringUrls.length >= 8 && (
+                        <PhotoOrbit urls={ringUrls}>
+                            {/* eslint-disable-next-line @next/next/no-img-element -- โลโก้สีขาวของเว็บสมัคร */}
+                            <img src="/runludtong-logo-white.svg" alt="" width={490} height={440} className="h-14 sm:h-20 w-auto mx-auto" />
+                            <h1 className="hero-wordmark hero-wordmark--light mt-4">RUNLUDTONG</h1>
+                            <p className="mt-3 text-[11px] sm:text-sm font-semibold tracking-[0.22em] uppercase text-white/70">
+                                Photo{latest && ` · ${latest.name}`}
+                                {latest?.eventDate && ` · ${latest.eventDate.toLocaleDateString("th-TH", { dateStyle: "medium", timeZone: "Asia/Bangkok" })}`}
+                            </p>
+                        </PhotoOrbit>
+                    )}
                 </div>
-                <a href="#search" className="mx-auto mb-5 flex flex-col items-center gap-1 text-xs text-white/60 hover:text-white">
-                    เลื่อนลงเพื่อค้นหารูป
+                <a href="#search" aria-label="เลื่อนลงเพื่อค้นหารูป" className="mx-auto mb-4 p-2 text-white/50 hover:text-white">
                     <svg className="scroll-cue" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="m6 9 6 6 6-6" />
                     </svg>
@@ -49,15 +59,12 @@ export default async function Home() {
             </section>
 
             {/* section 2: ค้นหารูป */}
-            <section id="search" className="max-w-6xl mx-auto px-4 pt-14 pb-12 text-center">
-                <h1 className="display text-3xl sm:text-5xl">
+            <section id="search" className="max-w-6xl mx-auto px-4 pt-14 pb-12 text-center scroll-mt-14">
+                <h2 className="display text-3xl sm:text-5xl text-ink">
                     หารูปตัวเองจากงานวิ่ง
                     <br />
                     ด้วยเซลฟี่รูปเดียว
-                </h1>
-                <p className="text-ink-soft mt-4 max-w-md mx-auto text-[15px]">
-                    ไม่ต้องไล่ดูทีละรูปอีกต่อไป — ถ่ายเซลฟี่ ระบบหารูปที่มีคุณให้ แล้วดาวน์โหลดรูปเต็มได้ฟรี
-                </p>
+                </h2>
                 {latest && (
                     <div className="mt-7 flex flex-col items-center gap-2">
                         <Link
@@ -72,22 +79,6 @@ export default async function Home() {
                         </span>
                     </div>
                 )}
-
-                <ol className="grid gap-3 sm:grid-cols-3 mt-12 text-left">
-                    {[
-                        ["1", "ถ่ายเซลฟี่", "หน้าตรง เห็นหน้าชัด ไม่ใส่แว่นดำ"],
-                        ["2", "ระบบหาให้", "เทียบใบหน้ากับทุกรูปของงานในไม่กี่วินาที"],
-                        ["3", "โหลดฟรี", "ดูรูปทั้งหมดของคุณ แล้วโหลดไฟล์ต้นฉบับ"],
-                    ].map(([n, title, desc]) => (
-                        <li key={n} className="bg-paper rounded-2xl raise p-5 flex gap-4 items-start">
-                            <span className="numeral text-2xl w-10 h-10 shrink-0 rounded-xl bg-move inline-flex items-center justify-center">{n}</span>
-                            <div>
-                                <p className="font-semibold">{title}</p>
-                                <p className="text-sm text-ink-mute mt-0.5">{desc}</p>
-                            </div>
-                        </li>
-                    ))}
-                </ol>
             </section>
 
             <section className="max-w-6xl mx-auto px-4 pb-12">
@@ -104,7 +95,7 @@ export default async function Home() {
                 ) : (
                     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {events.map((e) => {
-                            const cover = publicUrl(e.photos[0]?.thumbKey ?? null)
+                            const cover = publicUrl(e.coverKey ?? e.photos[0]?.thumbKey ?? null)
                             return (
                                 <li key={e.id} className="bg-paper rounded-2xl overflow-hidden raise flex flex-col">
                                     <div className="aspect-[3/2] bg-paper-3">

@@ -33,7 +33,7 @@ export default function LoginForm({ next }: { next: string }) {
                 />
             </div>
             {error && <p className="text-sm text-danger">{error}</p>}
-            <button disabled={pending} className="w-full h-11 rounded-xl bg-ink text-paper font-medium disabled:opacity-50">
+            <button disabled={pending} className="w-full h-11 rounded-xl bg-navy text-white hover:bg-navy-deep font-medium disabled:opacity-50">
                 {pending ? "กำลังตรวจสอบ…" : "เข้าสู่ระบบ"}
             </button>
         </form>

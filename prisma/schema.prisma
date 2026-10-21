@@ -25,6 +25,10 @@ model Event {
   // โฟลเดอร์ Google Drive ที่ช่างภาพอัปโหลดรูป (ไล่โฟลเดอร์ย่อยทั้งหมด) — ต้องแชร์ให้ service account แบบ Viewer
   driveFolderId String
   isPublished   Boolean  @default(false)
+  // รูปปกของงาน (key ใน Azure Blob) — null = ใช้รูปแรกของงาน
+  coverKey      String?
+  // รูปชุดเคลื่อนไหวหน้าแรก (key ใน Blob, ~1000px ไม่มีลายน้ำ) — สร้างด้วย npm run hero; null = สุ่มจากรูปย่อ
+  heroKeys      Json?
 
   // ค้นด้วยใบหน้า — ข้อมูลใบหน้าเป็นข้อมูลชีวภาพตาม PDPA ต้องลบทิ้งตามกำหนด (purgeFacesAt)
   faceSearchEnabled Boolean   @default(true)

@@ -3,23 +3,27 @@
 @theme {
   --font-sans: var(--font-prompt), ui-sans-serif, system-ui, sans-serif;
 
-  /* พื้นผิว — ขาวขึ้นไปหาเทาอ่อน */
+  /* โทนตามโลโก้ RunLudtong (กรมท่า #002B5A) — พื้นขาวอมฟ้าอ่อน */
   --color-paper: #FFFFFF;      /* การ์ด, พื้นหลักของเนื้อหา */
-  --color-paper-2: #F4F4F5;    /* พื้นหน้า, แถบเลื่อน */
-  --color-paper-3: #E9E9EC;    /* เส้นคั่น, พื้นปุ่มรอง */
-  --color-line: #DEDEE2;       /* เส้นขอบ */
+  --color-paper-2: #F2F5FA;    /* พื้นหน้า */
+  --color-paper-3: #E3EAF3;    /* เส้นคั่น, พื้นปุ่มรอง */
+  --color-line: #D6DFEB;       /* เส้นขอบ */
 
-  /* ตัวอักษร — ทุกระดับผ่าน WCAG AA บนพื้นขาว */
-  --color-ink: #0A0A0A;        /* หัวเรื่อง 21:1 */
-  --color-ink-soft: #3F3F46;   /* เนื้อความ 10.8:1 */
-  --color-ink-mute: #71717A;   /* ป้ายกำกับ 4.9:1 */
+  /* ตัวอักษร — กรมท่าเข้ม ทุกระดับผ่าน WCAG AA บนพื้นขาว */
+  --color-ink: #0B1E3B;        /* หัวเรื่อง ~16:1 */
+  --color-ink-soft: #33445F;   /* เนื้อความ ~10:1 */
+  --color-ink-mute: #5B6B84;   /* ป้ายกำกับ ~5.3:1 */
+
+  /* สีแบรนด์ — กรมท่าของโลโก้ ใช้เป็นพื้น hero / ปุ่มรอง */
+  --color-navy: #002B5A;
+  --color-navy-deep: #00172F;
 
   /* สีตัวอักษร/ป้าย — ผ่าน AA บนพื้นขาว */
   --color-lime: #4D7C0F;   /* กิจกรรม  4.6:1 */
-  --color-sky: #0369A1;    /* ข้อมูลรอง 5.9:1 */
+  --color-sky: #1F5FA8;    /* ข้อมูลรอง/ลิงก์ ~6:1 */
   --color-danger: #E11D48; /* แจ้งเตือน/ข้อผิดพลาด/ยกเลิก  4.8:1 */
 
-  /* สีแบรนด์หลัก — เหลือง ใช้เป็น "พื้น" เท่านั้น (คอนทราสต์กับขาว ~1.3:1
+  /* สีเน้น — เหลืองจากรองเท้าในโลโก้ ใช้เป็น "พื้น" ปุ่มหลักเท่านั้น (คอนทราสต์กับขาว ~1.3:1
      ต่ำเกินจะใช้เป็นสีตัวอักษรบนพื้นขาวได้) คู่กับตัวอักษรสีดำ (--color-ink) เสมอ */
   --color-move: #FADF4B;
 
@@ -86,7 +90,7 @@ body {
 
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-::selection { background: var(--color-ink); color: #fff; }
+::selection { background: var(--color-navy); color: #fff; }
 
 input, textarea, select, button { font-family: inherit; }
 
@@ -102,66 +106,14 @@ input:-webkit-autofill:focus {
 }
 .animate-rise { animation: rise .28s cubic-bezier(.2,.7,.3,1) both; }
 
-/* ---------- หน้าแรก: hero พื้นดำลายจุด + วงแหวนรูป 3 มิติ (components/PhotoRing.tsx) ---------- */
+/* ---------- หน้าแรก: hero พื้นกรมท่าลายจุด ---------- */
 
 .hero-dots {
-  background-image: radial-gradient(rgb(255 255 255 / 0.09) 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-
-.photo-ring-stage {
-  /* รัศมีวงแหวน — ย่อตามจอ มือถือ ~150px เดสก์ท็อปสูงสุด 360px */
-  /* ใช้ทั้งความกว้างและสูงจอ ให้วงแหวนพอดีกับ hero เต็มจอ */
-  --r: clamp(130px, min(40vw, 27svh), 400px);
-  height: calc(var(--r) * 1.2);
-  /* ต้องกว้างเต็ม — ถ้าหดตามการ์ดใบเดียว mask-image จะตัดวงแหวนเหลือแถบแคบ */
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  perspective: calc(var(--r) * 3.2);
-  /* ไล่สีจางลงขอบล่าง ให้วงแหวนกลืนกับพื้นหลัง */
-  mask-image: linear-gradient(to bottom, #000 70%, transparent);
-}
-
-/* วงแหวนเต็มจอ — กินพื้นที่ hero ทั้งหมด จำกัดด้วยทั้งกว้างและสูงของจอ */
-.photo-ring-stage--full {
-  --r: clamp(170px, min(46vw, 48svh), 620px);
-  height: 100%;
-  mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 80%, transparent);
-}
-
-.photo-ring-tilt {
-  transform-style: preserve-3d;
-  transform: rotateX(-14deg) rotateZ(-7deg);
-}
-
-.photo-ring {
-  position: relative;
-  width: calc(var(--r) * 0.36);
-  height: calc(var(--r) * 0.48);
-  transform-style: preserve-3d;
-  animation: ring-spin 48s linear infinite;
-}
-
-.photo-ring li {
-  position: absolute;
-  inset: 0;
-  border-radius: calc(var(--r) * 0.045);
-  overflow: hidden;
-  background: #1c1c1f;
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 12px 30px -10px rgb(0 0 0 / 0.7);
-}
-
-.photo-ring img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  user-select: none;
-}
-
-@keyframes ring-spin {
-  to { transform: rotateY(-360deg); }
+  background-color: var(--color-navy-deep);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% 45%, rgb(31 95 168 / 0.45), transparent 70%),
+    radial-gradient(rgb(255 255 255 / 0.08) 1px, transparent 1px);
+  background-size: 100% 100%, 22px 22px;
 }
 
 @keyframes cue-bob {
@@ -170,6 +122,82 @@ input:-webkit-autofill:focus {
 .scroll-cue { animation: cue-bob 1.6s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .photo-ring, .scroll-cue { animation: none; }
+  .scroll-cue { animation: none; }
   html { scroll-behavior: auto; }
+}
+
+/* ---------- หน้าแรก: Lens Orbit (components/PhotoOrbit.tsx) ---------- */
+
+.photo-orbit {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* จางขอบซ้าย/ขวา ให้การ์ดที่เลื่อนออกกลืนไปกับพื้น */
+  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+}
+
+.photo-orbit ul {
+  position: absolute;
+  inset: 0;
+}
+
+.photo-orbit li {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0b2547;
+  will-change: transform, opacity;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.1), 0 18px 40px -16px rgb(0 0 0 / 0.75);
+}
+
+/* เฉพาะรูปในการ์ด — ไม่โดนโลโก้ในชื่องาน (.photo-orbit-title) */
+.photo-orbit li img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+
+/* ชื่องานตัวใหญ่ — กรมท่าของโลโก้ มีแสงสีเหลือง(รองเท้าในโลโก้) วิ่งผ่านช้าๆ */
+.hero-wordmark {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  font-size: clamp(40px, 9vw, 128px);
+  background: linear-gradient(100deg, var(--color-navy) 0%, var(--color-navy) 38%, #F2B705 50%, var(--color-navy) 62%, var(--color-navy) 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: wordmark-shine 7s ease-in-out infinite;
+}
+
+/* บนพื้นกรมท่า — ตัวอักษรขาว แสงเหลืองวิ่งผ่าน */
+.hero-wordmark--light {
+  background-image: linear-gradient(100deg, #fff 0%, #fff 38%, var(--color-move) 50%, #fff 62%, #fff 100%);
+}
+
+/* ชื่องานซ้อนกลางวงการ์ด — PhotoOrbit คุม opacity/scale ทุกเฟรม */
+.photo-orbit-title {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 16px;
+  pointer-events: none;
+  z-index: 200;
+}
+
+@keyframes wordmark-shine {
+  0%, 100% { background-position: 100% 0; }
+  50% { background-position: 0% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-wordmark { animation: none; }
 }

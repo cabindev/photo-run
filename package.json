@@ -11,7 +11,9 @@
     "sync": "tsx scripts/sync-event.ts",
     "db:migrate": "prisma migrate deploy",
     "models": "tsx scripts/download-models.ts",
-    "admin:password": "tsx scripts/set-admin-password.ts"
+    "admin:password": "tsx scripts/set-admin-password.ts",
+    "cover": "tsx scripts/set-cover.ts",
+    "hero": "tsx scripts/make-hero.ts"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.34.0",
