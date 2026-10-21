@@ -32,35 +32,13 @@ export default async function Home() {
 
     return (
         <>
-            {/* hero เต็มจอ (ลบความสูง header 3.5rem) — เลื่อนลงไปค้นหารูปที่ #search */}
-            <section className="hero-dots bg-ink text-white overflow-hidden min-h-[calc(100svh-3.5rem)] flex flex-col">
-                <div className="max-w-6xl w-full mx-auto px-4 pt-8 sm:pt-12 text-center">
-                    <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/60">RunPhoto · รันลัดโต้ง</p>
-                    <h1 className="display text-3xl sm:text-5xl mt-3">
-                        หารูปตัวเองจากงานวิ่ง
-                        <br />
-                        <span className="text-move">ด้วยเซลฟี่รูปเดียว</span>
-                    </h1>
-                    <p className="text-white/70 mt-4 max-w-md mx-auto text-[15px]">
-                        ไม่ต้องไล่ดูทีละรูปอีกต่อไป — ถ่ายเซลฟี่ ระบบหารูปที่มีคุณให้ แล้วดาวน์โหลดรูปเต็มได้ฟรี
-                    </p>
-                    {latest && (
-                        <div className="mt-7 flex flex-col items-center gap-2">
-                            <a
-                                href="#search"
-                                className="h-14 px-8 inline-flex items-center gap-2.5 rounded-2xl bg-move text-ink text-lg font-bold hover:brightness-95 active:scale-[0.98] transition"
-                            >
-                                <CameraIcon />
-                                ค้นหารูป
-                            </a>
-                            <span className="text-xs text-white/50 tnum">
-                                {totalPhotos.toLocaleString("th-TH")} รูปจาก {events.length.toLocaleString("th-TH")} งาน
-                            </span>
-                        </div>
-                    )}
-                </div>
+            {/* section 1: วงแหวนรูปเคลื่อนไหวเต็มจอ (ลบความสูง header 3.5rem) */}
+            <section className="hero-dots bg-ink text-white overflow-hidden h-[calc(100svh-3.5rem)] min-h-[420px] flex flex-col relative">
+                <p className="absolute top-5 inset-x-0 text-center text-[11px] font-semibold tracking-[0.18em] uppercase text-white/50">
+                    RunPhoto{latest && ` · ${latest.name}`}
+                </p>
                 <div className="flex-1 flex items-center justify-center min-h-0">
-                    {ringUrls.length >= 8 && <PhotoRing urls={ringUrls} />}
+                    {ringUrls.length >= 8 && <PhotoRing urls={ringUrls} size="full" />}
                 </div>
                 <a href="#search" className="mx-auto mb-5 flex flex-col items-center gap-1 text-xs text-white/60 hover:text-white">
                     เลื่อนลงเพื่อค้นหารูป
@@ -70,8 +48,32 @@ export default async function Home() {
                 </a>
             </section>
 
-            <section id="search" className="max-w-6xl mx-auto px-4 py-12 scroll-mt-4">
-                <ol className="grid gap-3 sm:grid-cols-3">
+            {/* section 2: ค้นหารูป */}
+            <section id="search" className="max-w-6xl mx-auto px-4 pt-14 pb-12 text-center">
+                <h1 className="display text-3xl sm:text-5xl">
+                    หารูปตัวเองจากงานวิ่ง
+                    <br />
+                    ด้วยเซลฟี่รูปเดียว
+                </h1>
+                <p className="text-ink-soft mt-4 max-w-md mx-auto text-[15px]">
+                    ไม่ต้องไล่ดูทีละรูปอีกต่อไป — ถ่ายเซลฟี่ ระบบหารูปที่มีคุณให้ แล้วดาวน์โหลดรูปเต็มได้ฟรี
+                </p>
+                {latest && (
+                    <div className="mt-7 flex flex-col items-center gap-2">
+                        <Link
+                            href={`/e/${latest.slug}`}
+                            className="h-14 px-8 inline-flex items-center gap-2.5 rounded-2xl bg-move text-ink text-lg font-bold hover:brightness-95 active:scale-[0.98] transition raise"
+                        >
+                            <CameraIcon />
+                            ค้นหารูป
+                        </Link>
+                        <span className="text-xs text-ink-mute tnum">
+                            {latest.name} · {latest._count.photos.toLocaleString("th-TH")} รูป
+                        </span>
+                    </div>
+                )}
+
+                <ol className="grid gap-3 sm:grid-cols-3 mt-12 text-left">
                     {[
                         ["1", "ถ่ายเซลฟี่", "หน้าตรง เห็นหน้าชัด ไม่ใส่แว่นดำ"],
                         ["2", "ระบบหาให้", "เทียบใบหน้ากับทุกรูปของงานในไม่กี่วินาที"],

@@ -124,6 +124,13 @@ input:-webkit-autofill:focus {
   mask-image: linear-gradient(to bottom, #000 70%, transparent);
 }
 
+/* วงแหวนเต็มจอ — กินพื้นที่ hero ทั้งหมด จำกัดด้วยทั้งกว้างและสูงของจอ */
+.photo-ring-stage--full {
+  --r: clamp(170px, min(46vw, 48svh), 620px);
+  height: 100%;
+  mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 80%, transparent);
+}
+
 .photo-ring-tilt {
   transform-style: preserve-3d;
   transform: rotateX(-14deg) rotateZ(-7deg);
