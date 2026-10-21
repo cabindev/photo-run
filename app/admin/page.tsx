@@ -83,7 +83,16 @@ export default async function AdminPage() {
                                 <Stat label="ผิดพลาด" value={failed} danger={failed > 0} />
                                 <Stat label="ใบหน้า" value={num(faceCounts, e.id)} />
                                 <Stat label="รูปที่อ่าน BIB ได้" value={num(bibCounts, e.id)} />
-                                <Stat label="ค้นด้วยหน้า" value={e.faceSearchEnabled ? "เปิด" : "ปิด"} />
+                                <Stat
+                                    label="ค้นด้วยหน้า"
+                                    value={
+                                        e.faceSearchEnabled
+                                            ? e.purgeFacesAt
+                                                ? `ลบ ${e.purgeFacesAt.toLocaleDateString("th-TH", { dateStyle: "medium", timeZone: "Asia/Bangkok" })}`
+                                                : "เปิด"
+                                            : "ปิด"
+                                    }
+                                />
                             </dl>
                         </article>
                     )

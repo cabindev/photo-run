@@ -12,9 +12,22 @@ const prompt = Prompt({
     variable: "--font-prompt",
 })
 
+const DESCRIPTION = "หารูปตัวเองจากงานวิ่งรันลัดโต้งด้วยเซลฟี่รูปเดียว แล้วดาวน์โหลดรูปเต็มได้ฟรี"
+
+// ภาพตัวอย่างเวลาแชร์ลิงก์ใน LINE / Facebook — public/og.jpg (1200×630) หน้างานใช้รูปปกของงานแทน
 export const metadata: Metadata = {
-    title: { default: "RunPhoto · ค้นหารูปงานวิ่ง", template: "%s · RunPhoto" },
-    description: "ค้นหารูปของคุณจากงานวิ่งด้วยใบหน้า เลข BIB หรือเบอร์โทร",
+    metadataBase: new URL(process.env.APP_URL || "https://photo.runludtong.com"),
+    title: { default: "RunLudtong Photo · หารูปงานวิ่งด้วยเซลฟี่", template: "%s · RunLudtong Photo" },
+    description: DESCRIPTION,
+    openGraph: {
+        type: "website",
+        siteName: "RunLudtong Photo",
+        locale: "th_TH",
+        title: "RunLudtong Photo · หารูปงานวิ่งด้วยเซลฟี่",
+        description: DESCRIPTION,
+        images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "RUNLUDTONG 8" }],
+    },
+    twitter: { card: "summary_large_image" },
 }
 
 export const viewport: Viewport = {

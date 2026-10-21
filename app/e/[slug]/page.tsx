@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
+import { publicUrl } from "@/lib/blob"
 import { isFaceModelReady } from "@/lib/face"
 import { isPhoneLookupConfigured, listPhotos } from "@/lib/search"
 import PhotoBrowser from "@/components/PhotoBrowser"
@@ -17,7 +18,22 @@ async function getEvent(slug: string) {
 
 export async function generateMetadata({ params }: PageProps<"/e/[slug]">): Promise<Metadata> {
     const event = await getEvent((await params).slug)
-    return { title: event?.name ?? "ไม่พบงาน" }
+    if (!event) return { title: "ไม่พบงาน" }
+    const description = `หารูปตัวเองจาก ${event.name} ด้วยเซลฟี่ แล้วดาวน์โหลดรูปเต็มได้ฟรี`
+    const cover = publicUrl(event.coverKey)
+    return {
+        title: `รูปงาน ${event.name}`,
+        description,
+        // openGraph ของหน้าลูกแทนที่ของ layout ทั้งก้อน — ใส่ค่าร่วมซ้ำ
+        openGraph: {
+            type: "website",
+            siteName: "RunLudtong Photo",
+            locale: "th_TH",
+            title: `รูปงาน ${event.name}`,
+            description,
+            ...(cover ? { images: [{ url: cover, alt: event.name }] } : {}),
+        },
+    }
 }
 
 export default async function EventPage({ params, searchParams }: PageProps<"/e/[slug]">) {
@@ -43,6 +59,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/e/
                 slug={event.slug}
                 photos={photos}
                 faceEnabled={hasFaces}
+                facesPurgeAt={event.purgeFacesAt?.toLocaleDateString("th-TH", { dateStyle: "long", timeZone: "Asia/Bangkok" }) ?? null}
                 bibEnabled={event.bibOcrEnabled}
                 phoneEnabled={isPhoneLookupConfigured()}
                 pagination={

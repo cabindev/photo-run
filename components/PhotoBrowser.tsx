@@ -58,6 +58,7 @@ export default function PhotoBrowser({
     slug,
     photos,
     faceEnabled,
+    facesPurgeAt,
     bibEnabled,
     phoneEnabled,
     pagination,
@@ -65,6 +66,8 @@ export default function PhotoBrowser({
     slug: string
     photos: PhotoCard[]
     faceEnabled: boolean
+    /** วันที่ลบข้อมูลใบหน้าของงาน (ข้อความภาษาไทยแล้ว) — แจ้งผู้ใช้ตาม PDPA */
+    facesPurgeAt: string | null
     bibEnabled: boolean
     phoneEnabled: boolean
     pagination?: React.ReactNode
@@ -224,6 +227,7 @@ export default function PhotoBrowser({
                                 <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
                                 <span>
                                     ยินยอมให้ใช้ภาพใบหน้านี้เพื่อค้นหารูปของฉันในงานนี้เท่านั้น — ระบบไม่บันทึกรูปเซลฟี่ไว้
+                                    {facesPurgeAt && ` · ข้อมูลใบหน้าในรูปงานจะถูกลบภายใน ${facesPurgeAt}`}
                                 </span>
                             </label>
                         </div>

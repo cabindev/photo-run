@@ -4,6 +4,7 @@
  *   npm run sync -- <slug>            ซิงก์งานเดียว
  *   npm run sync -- --all             ซิงก์ทุกงานที่เผยแพร่อยู่
  *   npm run sync -- <slug> --purge-faces   ลบข้อมูลใบหน้าของงาน (PDPA)
+ *   npm run sync -- --purge-due            ลบใบหน้าของทุกงานที่ถึง purgeFacesAt แล้ว (ตั้ง cron ทุกคืน)
  *
  * รันซ้ำได้ — รูปที่ทำแล้วจะข้าม
  */
@@ -14,6 +15,16 @@ import { syncEvent, purgeFaces } from "../lib/pipeline"
 async function main() {
     const args = process.argv.slice(2)
     const slug = args.find((a) => !a.startsWith("--"))
+
+    if (args.includes("--purge-due")) {
+        const due = await prisma.event.findMany({ where: { purgeFacesAt: { lte: new Date() }, faceSearchEnabled: true } })
+        for (const e of due) {
+            await purgeFaces(e.id)
+            console.log(`ลบข้อมูลใบหน้าของ ${e.slug} แล้ว (ครบกำหนด ${e.purgeFacesAt?.toISOString().slice(0, 10)})`)
+        }
+        if (!due.length) console.log("ไม่มีงานที่ถึงกำหนดลบข้อมูลใบหน้า")
+        return
+    }
 
     if (args.includes("--all")) {
         const events = await prisma.event.findMany({ where: { isPublished: true }, orderBy: { createdAt: "asc" } })

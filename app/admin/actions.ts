@@ -9,6 +9,8 @@ import { deleteEventData, purgeFaces, syncEvent } from "@/lib/pipeline"
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string }
 
+const FACE_RETENTION_DAYS = 90
+
 // รับได้ทั้งลิงก์โฟลเดอร์เต็ม (https://drive.google.com/drive/folders/<id>?...) และ id เปล่าๆ
 function parseFolderId(input: string): string {
     const m = input.match(/folders\/([A-Za-z0-9_-]{10,})/)
@@ -47,6 +49,8 @@ export async function createEvent(_prev: ActionResult | null, formData: FormData
             slug: d.slug,
             // วันที่งานเก็บเป็นเที่ยงคืนเวลาไทย
             eventDate: d.eventDate ? new Date(`${d.eventDate}T00:00:00+07:00`) : null,
+            // PDPA: ลบข้อมูลใบหน้าอัตโนมัติ FACE_RETENTION_DAYS วันหลังงาน (npm run sync -- --purge-due ทุกคืน)
+            purgeFacesAt: d.eventDate ? new Date(new Date(`${d.eventDate}T00:00:00+07:00`).getTime() + FACE_RETENTION_DAYS * 86_400_000) : null,
             organizer: d.organizer || null,
             driveFolderId: parseFolderId(d.driveFolder),
             bibPattern: d.bibPattern || null,
