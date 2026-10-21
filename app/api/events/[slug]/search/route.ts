@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import sharp from "sharp"
 import { prisma } from "@/lib/prisma"
 import { isFaceModelReady } from "@/lib/face"
+import { clientIp } from "@/lib/client-ip"
 import { lookupBibsByPhone, searchByBibs, searchByFace } from "@/lib/search"
 
 /**
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/events/[slu
     const event = await prisma.event.findUnique({ where: { slug } })
     if (!event || !event.isPublished) return NextResponse.json({ error: "ไม่พบงานนี้" }, { status: 404 })
 
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local"
+    const ip = clientIp(req.headers)
     if (rateLimited(ip)) return NextResponse.json({ error: "ค้นหาถี่เกินไป รอสักครู่แล้วลองใหม่" }, { status: 429 })
 
     const form = await req.formData()
