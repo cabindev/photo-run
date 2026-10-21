@@ -37,14 +37,17 @@ export async function requireAdmin(): Promise<void> {
     if (!(await isAdmin())) throw new Error("ต้องเป็นผู้ดูแลระบบ")
 }
 
+export const sessionCookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: SESSION_MAX_AGE,
+}
+
+/** username = ชื่อผู้ใช้ (ล็อกอินด้วยรหัสผ่าน) หรืออีเมล (ล็อกอินด้วย Google) */
 export async function startSession(username: string): Promise<void> {
-    ;(await cookies()).set(SESSION_COOKIE, await signSession(username), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: SESSION_MAX_AGE,
-    })
+    ;(await cookies()).set(SESSION_COOKIE, await signSession(username), sessionCookieOptions)
 }
 
 export async function endSession(): Promise<void> {
