@@ -2,6 +2,8 @@
 
 Next.js 16 + Prisma (MySQL) · รูปต้นฉบับอยู่ Google Drive · Azure Blob / Vision · ใบหน้าใช้โมเดล OpenCV รันในเครื่อง
 
+เว็บจริง: https://photo.runludtong.com · **เอกสารระบบฉบับเต็ม (การทำงาน, คู่มือแอดมิน, deploy, แก้ปัญหา): [docs/SYSTEM.md](docs/SYSTEM.md)**
+
 ## การทำงาน
 
 ```
@@ -35,6 +37,7 @@ npm run dev               # http://localhost:3001
 |---|---|
 | `SESSION_SECRET` | สุ่มเอง ≥ 32 ตัว (`openssl rand -base64 48`) — เซ็นคุกกี้แอดมิน |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH` | `npm run admin:password` (พิมพ์ชื่อและรหัสใน Terminal) |
+| `GOOGLE_CLIENT_ID/SECRET`, `ADMIN_EMAILS`, `APP_URL` | ล็อกอินแอดมินด้วย Google — OAuth client เดียวกับเว็บสมัคร + redirect URI `<APP_URL>/api/auth/google/callback` |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google Cloud → service account → key (JSON) แล้วแชร์โฟลเดอร์รูปให้อีเมล service account แบบ Viewer |
 | `AZURE_STORAGE_CONNECTION_STRING`, `BLOB_PUBLIC_BASE_URL` | Storage account → Access keys; URL = `https://<account>.blob.core.windows.net/photos` |
 | `AZURE_VISION_ENDPOINT/KEY` | Azure AI Vision (อ่าน BIB) — หรือ Azure AI Services แบบ S0 |
@@ -43,8 +46,12 @@ npm run dev               # http://localhost:3001
 
 ## ผู้ดูแล
 
-หน้า `/admin` ใช้บัญชีแอดมินของระบบรูปเอง (ชื่อผู้ใช้ + รหัสผ่าน, แยกจากเว็บสมัคร) — ล็อกอินที่ `/login`
-ตั้ง/เปลี่ยน: `npm run admin:password` แล้วรีสตาร์ทเว็บ · นักวิ่งไม่ต้องล็อกอิน
+หน้า `/admin` ล็อกอินที่ `/login` (แยกจากเว็บสมัคร) — ด้วย Google (เฉพาะอีเมลใน `ADMIN_EMAILS`) หรือชื่อผู้ใช้ + รหัสผ่าน
+ตั้ง/เปลี่ยนรหัส: `npm run admin:password` แล้วรีสตาร์ทเว็บ · นักวิ่งไม่ต้องล็อกอิน
+
+## Deploy
+
+`git push` แล้วรัน `scripts/deploy.sh` บน VPS — ดู [docs/SYSTEM.md](docs/SYSTEM.md#4-production-vps)
 
 ## PDPA
 
