@@ -33,7 +33,7 @@
   color-scheme: light;
 }
 
-html { background: var(--color-paper-2); }
+html { background: var(--color-paper-2); scroll-behavior: smooth; }
 
 body {
   background: var(--color-paper-2);
@@ -111,13 +111,15 @@ input:-webkit-autofill:focus {
 
 .photo-ring-stage {
   /* รัศมีวงแหวน — ย่อตามจอ มือถือ ~150px เดสก์ท็อปสูงสุด 360px */
-  --r: clamp(150px, 38vw, 360px);
-  height: calc(var(--r) * 1.25);
+  /* ใช้ทั้งความกว้างและสูงจอ ให้วงแหวนพอดีกับ hero เต็มจอ */
+  --r: clamp(130px, min(40vw, 27svh), 400px);
+  height: calc(var(--r) * 1.2);
+  /* ต้องกว้างเต็ม — ถ้าหดตามการ์ดใบเดียว mask-image จะตัดวงแหวนเหลือแถบแคบ */
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   perspective: calc(var(--r) * 3.2);
-  margin-top: calc(var(--r) * -0.05);
   /* ไล่สีจางลงขอบล่าง ให้วงแหวนกลืนกับพื้นหลัง */
   mask-image: linear-gradient(to bottom, #000 70%, transparent);
 }
@@ -155,6 +157,12 @@ input:-webkit-autofill:focus {
   to { transform: rotateY(-360deg); }
 }
 
+@keyframes cue-bob {
+  50% { transform: translateY(4px); }
+}
+.scroll-cue { animation: cue-bob 1.6s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .photo-ring { animation: none; }
+  .photo-ring, .scroll-cue { animation: none; }
+  html { scroll-behavior: auto; }
 }

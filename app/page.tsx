@@ -32,8 +32,9 @@ export default async function Home() {
 
     return (
         <>
-            <section className="hero-dots bg-ink text-white overflow-hidden">
-                <div className="max-w-6xl mx-auto px-4 pt-12 sm:pt-16 text-center">
+            {/* hero เต็มจอ (ลบความสูง header 3.5rem) — เลื่อนลงไปค้นหารูปที่ #search */}
+            <section className="hero-dots bg-ink text-white overflow-hidden min-h-[calc(100svh-3.5rem)] flex flex-col">
+                <div className="max-w-6xl w-full mx-auto px-4 pt-8 sm:pt-12 text-center">
                     <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/60">RunPhoto · รันลัดโต้ง</p>
                     <h1 className="display text-3xl sm:text-5xl mt-3">
                         หารูปตัวเองจากงานวิ่ง
@@ -45,24 +46,31 @@ export default async function Home() {
                     </p>
                     {latest && (
                         <div className="mt-7 flex flex-col items-center gap-2">
-                            <Link
-                                href={`/e/${latest.slug}`}
+                            <a
+                                href="#search"
                                 className="h-14 px-8 inline-flex items-center gap-2.5 rounded-2xl bg-move text-ink text-lg font-bold hover:brightness-95 active:scale-[0.98] transition"
                             >
                                 <CameraIcon />
                                 ค้นหารูป
-                            </Link>
+                            </a>
                             <span className="text-xs text-white/50 tnum">
-                                {latest.name} · {latest._count.photos.toLocaleString("th-TH")} รูป
+                                {totalPhotos.toLocaleString("th-TH")} รูปจาก {events.length.toLocaleString("th-TH")} งาน
                             </span>
                         </div>
                     )}
                 </div>
-                {ringUrls.length >= 8 && <PhotoRing urls={ringUrls} />}
-                {ringUrls.length < 8 && <div className="h-12" />}
+                <div className="flex-1 flex items-center justify-center min-h-0">
+                    {ringUrls.length >= 8 && <PhotoRing urls={ringUrls} />}
+                </div>
+                <a href="#search" className="mx-auto mb-5 flex flex-col items-center gap-1 text-xs text-white/60 hover:text-white">
+                    เลื่อนลงเพื่อค้นหารูป
+                    <svg className="scroll-cue" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
+                </a>
             </section>
 
-            <section className="max-w-6xl mx-auto px-4 py-12">
+            <section id="search" className="max-w-6xl mx-auto px-4 py-12 scroll-mt-4">
                 <ol className="grid gap-3 sm:grid-cols-3">
                     {[
                         ["1", "ถ่ายเซลฟี่", "หน้าตรง เห็นหน้าชัด ไม่ใส่แว่นดำ"],
