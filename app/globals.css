@@ -101,3 +101,60 @@ input:-webkit-autofill:focus {
   to   { opacity: 1; transform: none; }
 }
 .animate-rise { animation: rise .28s cubic-bezier(.2,.7,.3,1) both; }
+
+/* ---------- หน้าแรก: hero พื้นดำลายจุด + วงแหวนรูป 3 มิติ (components/PhotoRing.tsx) ---------- */
+
+.hero-dots {
+  background-image: radial-gradient(rgb(255 255 255 / 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.photo-ring-stage {
+  /* รัศมีวงแหวน — ย่อตามจอ มือถือ ~150px เดสก์ท็อปสูงสุด 360px */
+  --r: clamp(150px, 38vw, 360px);
+  height: calc(var(--r) * 1.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: calc(var(--r) * 3.2);
+  margin-top: calc(var(--r) * -0.05);
+  /* ไล่สีจางลงขอบล่าง ให้วงแหวนกลืนกับพื้นหลัง */
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+
+.photo-ring-tilt {
+  transform-style: preserve-3d;
+  transform: rotateX(-14deg) rotateZ(-7deg);
+}
+
+.photo-ring {
+  position: relative;
+  width: calc(var(--r) * 0.36);
+  height: calc(var(--r) * 0.48);
+  transform-style: preserve-3d;
+  animation: ring-spin 48s linear infinite;
+}
+
+.photo-ring li {
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--r) * 0.045);
+  overflow: hidden;
+  background: #1c1c1f;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 12px 30px -10px rgb(0 0 0 / 0.7);
+}
+
+.photo-ring img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+
+@keyframes ring-spin {
+  to { transform: rotateY(-360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-ring { animation: none; }
+}
