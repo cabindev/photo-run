@@ -1,26 +1,103 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-prompt), ui-sans-serif, system-ui, sans-serif;
+
+  /* พื้นผิว — ขาวขึ้นไปหาเทาอ่อน */
+  --color-paper: #FFFFFF;      /* การ์ด, พื้นหลักของเนื้อหา */
+  --color-paper-2: #F4F4F5;    /* พื้นหน้า, แถบเลื่อน */
+  --color-paper-3: #E9E9EC;    /* เส้นคั่น, พื้นปุ่มรอง */
+  --color-line: #DEDEE2;       /* เส้นขอบ */
+
+  /* ตัวอักษร — ทุกระดับผ่าน WCAG AA บนพื้นขาว */
+  --color-ink: #0A0A0A;        /* หัวเรื่อง 21:1 */
+  --color-ink-soft: #3F3F46;   /* เนื้อความ 10.8:1 */
+  --color-ink-mute: #71717A;   /* ป้ายกำกับ 4.9:1 */
+
+  /* สีตัวอักษร/ป้าย — ผ่าน AA บนพื้นขาว */
+  --color-lime: #4D7C0F;   /* กิจกรรม  4.6:1 */
+  --color-sky: #0369A1;    /* ข้อมูลรอง 5.9:1 */
+  --color-danger: #E11D48; /* แจ้งเตือน/ข้อผิดพลาด/ยกเลิก  4.8:1 */
+
+  /* สีแบรนด์หลัก — เหลือง ใช้เป็น "พื้น" เท่านั้น (คอนทราสต์กับขาว ~1.3:1
+     ต่ำเกินจะใช้เป็นสีตัวอักษรบนพื้นขาวได้) คู่กับตัวอักษรสีดำ (--color-ink) เสมอ */
+  --color-move: #FADF4B;
+
+  /* สีกราฟิก (วงแหวน/แถบ) — สดกว่าได้ เพราะไม่ใช่ตัวอักษร ต้องการแค่ 3:1 */
+  --ring-move: #FADF4B;
+  --ring-lime: #84CC16;
+  --ring-sky: #0EA5E9;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+html { background: var(--color-paper-2); }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
+
+/* ตัวเลขความกว้างเท่ากัน — ไม่ขยับเวลาอัปเดต */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/*
+ * หัวเรื่อง — หนาแบบ Nike แต่เว้นที่ให้สระบน/ล่างและวรรณยุกต์ของภาษาไทย
+ * line-height ต่ำกว่า 1.15 จะทำให้ ิ ่ ้ ุ ู ชนบรรทัดข้างเคียง
+ * และ letter-spacing ติดลบมาก ๆ จะทำให้พยัญชนะไทยเบียดกัน
+ */
+.display {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.18;
+}
+
+/* หัวเรื่องที่มีแต่ตัวเลข/อักษรละติน — บีบได้แน่นกว่าเพราะไม่มีสระลอย */
+.numeral {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * เงาสองชั้น — ชั้นบางชิดขอบไว้ตัดกับพื้นเทา อีกชั้นฟุ้งกว้างไว้ให้การ์ดดูลอยขึ้นมาจริง
+ * ใช้แทน shadow-* ของ Tailwind เพราะเงาสำเร็จรูปดำเกินไปบนพื้น paper-2 จนขอบการ์ดดูสกปรก
+ */
+.raise { box-shadow: 0 1px 2px rgb(10 10 10 / 0.04), 0 10px 30px -18px rgb(10 10 10 / 0.18); }
+.raise-lg { box-shadow: 0 2px 4px rgb(10 10 10 / 0.05), 0 18px 44px -20px rgb(10 10 10 / 0.22); }
+
+/* ป้ายกำกับตัวเล็ก */
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: var(--color-ink-mute);
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+::selection { background: var(--color-ink); color: #fff; }
+
+input, textarea, select, button { font-family: inherit; }
+
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-ink);
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.animate-rise { animation: rise .28s cubic-bezier(.2,.7,.3,1) both; }

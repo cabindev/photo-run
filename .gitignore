@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ให้ .env.example ขึ้น git ได้
+!.env.example
+
+# กุญแจ service account และไฟล์ลับอื่นๆ
+/secrets/
+
+# โมเดลใบหน้า (~39MB) — โหลดด้วย npm run models
+/models/*.onnx
