@@ -134,7 +134,7 @@ input:-webkit-autofill:focus {
   height: 100%;
   perspective: 1600px;
   /* จางขอบซ้าย/ขวา ให้การ์ดที่เลื่อนออกกลืนไปกับพื้น */
-  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent);
 }
 
 /* การ์ดอยู่ในพื้นที่ 3 มิติเดียวกัน — เบราว์เซอร์เรียงว่าใบไหนบังใบไหนตามความลึกจริง (cover flow) */

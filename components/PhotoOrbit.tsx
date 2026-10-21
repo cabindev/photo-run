@@ -65,7 +65,8 @@ export default function PhotoOrbit({ urls, children }: { urls: string[]; childre
             if (p > n / 2) p -= n
             const x = p * spacing
             const lens = Math.exp(-((x / (spacing * 1.3)) ** 2))
-            const edge = clamp01((Math.abs(x) - w * 0.38) / (w * 0.14))
+            // ชัดเต็มจนกลางการ์ดถึงขอบจอ แล้วค่อยจางช่วงสั้นๆ ก่อนหลุดออกไป
+            const edge = clamp01((Math.abs(x) - w * 0.5) / (size * 0.35))
             return { x, y: 0, z: lens * size * 0.45, ry: -38 * Math.tanh(p * 0.9), s: 0.7 + 0.55 * lens, r: 0, o: 1 - edge }
         }
 
