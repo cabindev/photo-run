@@ -37,10 +37,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                         <nav className="flex items-center gap-4 text-sm text-ink-soft">
                             {admin && <Link href="/admin" className="hover:text-ink">จัดการงาน</Link>}
                             {admin && <span className="text-ink-mute truncate max-w-[30vw]">{admin}</span>}
-                            {admin && (
+                            {admin ? (
                                 <form action={logout}>
                                     <button className="text-ink-mute hover:text-ink">ออกจากระบบ</button>
                                 </form>
+                            ) : (
+                                <Link href="/login" className="h-8 px-3 inline-flex items-center rounded-lg border border-line hover:border-ink hover:text-ink">
+                                    เข้าสู่ระบบ
+                                </Link>
                             )}
                         </nav>
                     </div>
