@@ -6,6 +6,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH=/opt/plesk/node/24/bin:$PATH
+# IPv6 ของ VPS ใช้ไม่ได้เป็นบางช่วง (เช่นหลังรีบูต) — ให้ npm/node ต่อผ่าน IPv4 ก่อน ไม่งั้น npm ci ล้มกลางทาง
+export NODE_OPTIONS=--dns-result-order=ipv4first
 
 git pull --ff-only
 npm ci --no-audit --no-fund
