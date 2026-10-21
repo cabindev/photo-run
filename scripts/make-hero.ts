@@ -4,7 +4,7 @@
  * (document root คือ public/ — เว็บเซิร์ฟเวอร์ส่งไฟล์ให้ตรงๆ) ใช้ชุดเดิมทุกครั้งจึง cache ได้
  * public/hero/ ไม่อยู่ใน git — repo เป็น public ไม่ควรมีรูปนักวิ่ง → ต้องรันคำสั่งนี้บนเซิร์ฟเวอร์เอง
  *
- *   npm run hero -- <slug>          สุ่มชุดใหม่ 24 รูป
+ *   npm run hero -- <slug>          สุ่มชุดใหม่ 48 รูป (2 ชุด — หน้าแรกสุ่มหยิบ 24 รูปทุกครั้งที่เปิด)
  *   npm run hero -- <slug> --clear  กลับไปสุ่มจากรูปย่อทุกครั้งที่เปิดหน้า
  */
 import "dotenv/config"
@@ -16,7 +16,7 @@ import { prisma } from "../lib/prisma"
 import { downloadFile } from "../lib/drive"
 import { deletePrefix } from "../lib/blob"
 
-const COUNT = 24
+const COUNT = 48
 
 async function main() {
     const [slug, flag] = process.argv.slice(2)

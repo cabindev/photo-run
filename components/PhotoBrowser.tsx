@@ -1,18 +1,58 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useSyncExternalStore } from "react"
 import type { PhotoCard } from "@/lib/search"
 
 type Mode = "face" | "bib" | "phone"
 
 // ต้องตรงกับ MAX_PHOTOS ใน app/api/photos/zip/route.ts
 const MAX_ZIP = 60
+// บันทึกลงเครื่องผ่านหน้าต่างแชร์ของมือถือ — โหลดรูปเต็มทั้งหมดเข้าหน่วยความจำก่อน จึงจำกัดจำนวน
+const MAX_SHARE = 20
+// ย่อเซลฟี่ก่อนส่ง — หาหน้าได้ดีที่ด้านยาวราว 1600px และส่งเร็วกว่าไฟล์ 12MP หลายเท่า
+const SELFIE_MAX = 1600
+
+/**
+ * แปลงเซลฟี่เป็น JPEG ย่อขนาดในเบราว์เซอร์ — รูป HEIC ของ iPhone เซิร์ฟเวอร์อ่านไม่ได้ (sharp รองรับแค่ AVIF)
+ * แต่ Safari เปิด HEIC ได้ จึงแปลงตรงนี้ เบราว์เซอร์ที่เปิดไม่ได้จะคืนไฟล์เดิม (null = เปิดไม่ได้เลย)
+ */
+async function toJpeg(file: File): Promise<File | null> {
+    try {
+        const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" })
+        const scale = Math.min(1, SELFIE_MAX / Math.max(bitmap.width, bitmap.height))
+        const canvas = document.createElement("canvas")
+        canvas.width = Math.round(bitmap.width * scale)
+        canvas.height = Math.round(bitmap.height * scale)
+        canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+        bitmap.close()
+        const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.9))
+        return blob ? new File([blob], "selfie.jpg", { type: "image/jpeg" }) : file
+    } catch {
+        return /\.(heic|heif)$/i.test(file.name) || /hei[cf]/i.test(file.type) ? null : file
+    }
+}
+
+// มือถือที่แชร์ไฟล์ได้ — คอมบางเครื่อง (Chrome บน Mac) ก็แชร์ได้ แต่บนคอม .zip สะดวกกว่า จึงดูจอสัมผัสด้วย
+// ค่าไม่เปลี่ยนระหว่างใช้งาน ฝั่งเซิร์ฟเวอร์ถือว่าไม่ได้
+function canShareFiles(): boolean {
+    if (!window.matchMedia("(pointer: coarse)").matches) return false
+    const probe = new File([new Blob()], "x.jpg", { type: "image/jpeg" })
+    return typeof navigator.canShare === "function" && navigator.canShare({ files: [probe] })
+}
+const noSubscribe = () => () => {}
+
+function filenameFrom(res: Response, fallback: string): string {
+    const m = res.headers.get("content-disposition")?.match(/filename\*=UTF-8''([^;]+)/)
+    return m ? decodeURIComponent(m[1]) : fallback
+}
 
 /**
  * แกลเลอรีของงาน + ช่องค้นหา (ใบหน้า / BIB / เบอร์โทร)
  * มีผลค้นหา → แสดงผลค้นหาแทนแกลเลอรี, กด "ดูทั้งหมด" กลับมาแกลเลอรีหน้าปัจจุบัน
  * pagination เป็นของแกลเลอรี — ซ่อนตอนแสดงผลค้นหา (ผลค้นหาไม่แบ่งหน้า)
- * โหลดรูป: ทีละรูปจากหน้าดูรูป หรือกด "เลือกรูป" เลือกหลายรูปแล้วโหลดเป็น .zip ไฟล์เดียว
+ * โหลดรูป: ทีละรูปจากหน้าดูรูป หรือกด "เลือกรูป" เลือกหลายรูปแล้ว
+ *   - มือถือ (รองรับแชร์ไฟล์): บันทึกลงเครื่องผ่านหน้าต่างแชร์ — iPhone เลือก "บันทึกรูปภาพ" เข้าแอปรูปภาพได้ทันที
+ *   - คอม: โหลดเป็น .zip ไฟล์เดียว (zip บนมือถือต้องไปแตกไฟล์เอง ไม่สะดวก)
  */
 export default function PhotoBrowser({
     slug,
@@ -46,6 +86,45 @@ export default function PhotoBrowser({
     const [open, setOpen] = useState<PhotoCard | null>(null)
     const [selecting, setSelecting] = useState(false)
     const [selected, setSelected] = useState<Set<string>>(new Set())
+    // รูปที่โหลดเตรียมไว้แล้วสำหรับหน้าต่างแชร์ — share() ต้องเรียกตรงจากการกดปุ่ม จึงแยกเป็นสองขั้น
+    // ผูกกับชุดที่เลือกตอนเตรียม (selected เป็น Set ใหม่ทุกครั้งที่เปลี่ยน) — เลือกเพิ่ม/ลด ชุดเดิมใช้ไม่ได้อีก
+    const [preparedFor, setPreparedFor] = useState<{ selection: Set<string>; files: File[] } | null>(null)
+    const prepared = preparedFor?.selection === selected ? preparedFor.files : null
+    const [preparing, setPreparing] = useState<number | null>(null)
+    const canShare = useSyncExternalStore(noSubscribe, canShareFiles, () => false)
+
+    async function prepareShare() {
+        const selection = selected
+        const ids = [...selection]
+        setPreparing(0)
+        setError(null)
+        try {
+            const files: File[] = []
+            for (const id of ids) {
+                const res = await fetch(`/api/photos/${id}/download`)
+                if (!res.ok) throw new Error(String(res.status))
+                files.push(new File([await res.blob()], filenameFrom(res, `${id}.jpg`), { type: "image/jpeg" }))
+                setPreparing(files.length)
+            }
+            setPreparedFor({ selection, files })
+        } catch {
+            setError("โหลดรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือโหลดทีละรูป")
+        } finally {
+            setPreparing(null)
+        }
+    }
+
+    async function share() {
+        if (!prepared) return
+        try {
+            await navigator.share({ files: prepared })
+            setSelected(new Set())
+            setSelecting(false)
+        } catch (e) {
+            // ผู้ใช้กดยกเลิกหน้าต่างแชร์ — ไม่ใช่ข้อผิดพลาด
+            if (!(e instanceof DOMException && e.name === "AbortError")) setError("บันทึกไม่สำเร็จ ลองโหลดเป็น .zip หรือทีละรูป")
+        }
+    }
 
     function toggle(id: string) {
         setSelected((prev) => {
@@ -61,8 +140,11 @@ export default function PhotoBrowser({
         setSelected(new Set())
     }
 
-    function pickSelfie(file: File | undefined) {
-        if (!file) return
+    async function pickSelfie(picked: File | undefined) {
+        if (!picked) return
+        setError(null)
+        const file = await toJpeg(picked)
+        if (!file) return setError("เบราว์เซอร์นี้เปิดไฟล์ HEIC ไม่ได้ — ถ่ายเซลฟี่ใหม่ หรือเลือกรูป JPG/PNG")
         selfieRef.current = file
         if (selfiePreview) URL.revokeObjectURL(selfiePreview)
         setSelfiePreview(URL.createObjectURL(file))
@@ -129,7 +211,13 @@ export default function PhotoBrowser({
                                 {selfiePreview && <img src={selfiePreview} alt="" className="w-16 h-16 rounded-xl object-cover" />}
                                 <label className="h-11 px-4 inline-flex items-center rounded-xl border border-line text-sm cursor-pointer hover:border-ink">
                                     {selfiePreview ? "เปลี่ยนรูป" : "ถ่ายเซลฟี่ / เลือกรูป"}
-                                    <input type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => pickSelfie(e.target.files?.[0])} />
+                                    <input
+                                        type="file"
+                                        accept="image/*,.heic,.heif"
+                                        capture="user"
+                                        className="sr-only"
+                                        onChange={(e) => pickSelfie(e.target.files?.[0])}
+                                    />
                                 </label>
                             </div>
                             <label className="flex items-start gap-2 text-xs text-ink-soft">
@@ -236,14 +324,43 @@ export default function PhotoBrowser({
             </ul>
 
             {selecting && selected.size > 0 && (
-                // ส่งเป็น form ธรรมดา ให้เบราว์เซอร์โหลด .zip เอง — ไม่ต้องเก็บทั้งไฟล์ไว้ในหน่วยความจำของหน้าเว็บ
-                <form method="post" action="/api/photos/zip" className="sticky bottom-4 z-40 mt-4 flex justify-center pb-safe">
+                // .zip ส่งเป็น form ธรรมดา ให้เบราว์เซอร์โหลดเอง — ไม่ต้องเก็บทั้งไฟล์ไว้ในหน่วยความจำของหน้าเว็บ
+                <form method="post" action="/api/photos/zip" className="sticky bottom-4 z-40 mt-4 flex flex-col items-center gap-2 pb-safe">
                     {[...selected].map((id) => (
                         <input key={id} type="hidden" name="id" value={id} />
                     ))}
-                    <button className="h-12 px-6 rounded-2xl bg-move text-ink font-bold raise-lg tnum">
-                        ดาวน์โหลด {selected.size.toLocaleString("th-TH")} รูป (.zip)
-                    </button>
+                    {canShare && selected.size <= MAX_SHARE ? (
+                        <>
+                            {prepared ? (
+                                <button type="button" onClick={share} className="h-12 px-6 rounded-2xl bg-move text-ink font-bold raise-lg tnum">
+                                    บันทึก {prepared.length.toLocaleString("th-TH")} รูปลงเครื่อง
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={prepareShare}
+                                    disabled={preparing !== null}
+                                    className="h-12 px-6 rounded-2xl bg-move text-ink font-bold raise-lg tnum disabled:opacity-80"
+                                >
+                                    {preparing !== null
+                                        ? `กำลังเตรียมรูป ${preparing}/${selected.size}…`
+                                        : `เตรียมบันทึก ${selected.size.toLocaleString("th-TH")} รูป`}
+                                </button>
+                            )}
+                            <button className="text-xs text-ink-soft underline bg-paper/90 rounded px-2 py-0.5">หรือโหลดเป็น .zip</button>
+                        </>
+                    ) : (
+                        <>
+                            <button className="h-12 px-6 rounded-2xl bg-move text-ink font-bold raise-lg tnum">
+                                ดาวน์โหลด {selected.size.toLocaleString("th-TH")} รูป (.zip)
+                            </button>
+                            {canShare && (
+                                <span className="text-xs text-ink-soft bg-paper/90 rounded px-2 py-0.5">
+                                    บันทึกลงเครื่องได้ครั้งละไม่เกิน {MAX_SHARE} รูป
+                                </span>
+                            )}
+                        </>
+                    )}
                 </form>
             )}
 

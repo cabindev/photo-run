@@ -5,7 +5,7 @@ import PhotoOrbit from "@/components/PhotoOrbit"
 
 export const dynamic = "force-dynamic"
 
-const RING_SIZE = 24
+const RING_SIZE = 24 // รูปที่แสดงต่อครั้ง — ชุดใน public/hero มี 2 เท่า สุ่มหยิบทุกครั้งที่เปิดหน้า
 
 export default async function Home() {
     const events = await prisma.event.findMany({
@@ -23,7 +23,9 @@ export default async function Home() {
     // ถ้ายังไม่ได้ทำ สุ่มรูปย่อที่เห็นหน้าชัดจากงานล่าสุดแทน
     const heroKeys = Array.isArray(latest?.heroKeys) ? (latest.heroKeys as string[]) : null
     const ring = heroKeys
-        ? heroKeys.map((thumbKey) => ({ thumbKey }))
+        ? shuffle(heroKeys)
+              .slice(0, RING_SIZE)
+              .map((thumbKey) => ({ thumbKey }))
         : latest
         ? await prisma.$queryRaw<{ thumbKey: string }[]>`
             SELECT p.thumbKey FROM Photo p
@@ -138,4 +140,13 @@ function CameraIcon({ small }: { small?: boolean }) {
             <circle cx="12" cy="13" r="3.5" />
         </svg>
     )
+}
+
+function shuffle<T>(items: T[]): T[] {
+    const a = [...items]
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[a[i], a[j]] = [a[j], a[i]]
+    }
+    return a
 }
