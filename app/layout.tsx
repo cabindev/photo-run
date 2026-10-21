@@ -22,6 +22,9 @@ export const viewport: Viewport = {
     initialScale: 1,
 }
 
+// เว็บหลักของงานวิ่ง — ลิงก์ใน navbar ให้กลับไปได้
+const MAIN_SITE_URL = process.env.MAIN_SITE_URL || "https://runludtong.com"
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const admin = await getAdmin()
 
@@ -35,8 +38,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                             <span className="bg-move px-1.5 py-0.5 rounded-md mr-1">RUN</span>PHOTO
                         </Link>
                         <nav className="flex items-center gap-4 text-sm text-ink-soft">
+                            <a href={MAIN_SITE_URL} className="hover:text-ink">← runludtong.com</a>
                             {admin && <Link href="/admin" className="hover:text-ink">จัดการงาน</Link>}
-                            {admin && <span className="text-ink-mute truncate max-w-[30vw]">{admin}</span>}
+                            {admin && <span className="hidden sm:inline text-ink-mute truncate max-w-[30vw]">{admin}</span>}
                             {admin ? (
                                 <form action={logout}>
                                     <button className="text-ink-mute hover:text-ink">ออกจากระบบ</button>
