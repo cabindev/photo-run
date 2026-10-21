@@ -19,7 +19,7 @@ export default async function Home() {
     })
     const latest = events[0]
 
-    // รูปเคลื่อนไหวหน้าแรก: ใช้ชุดที่ทำไว้ (npm run hero — ชัด ไม่มีลายน้ำ ชุดเดิมทุกครั้งจึง cache ได้)
+    // รูปเคลื่อนไหวหน้าแรก: ใช้ชุดที่ทำไว้ใน public/hero (npm run hero — ชัด ไม่มีลายน้ำ ชุดเดิมทุกครั้งจึง cache ได้)
     // ถ้ายังไม่ได้ทำ สุ่มรูปย่อที่เห็นหน้าชัดจากงานล่าสุดแทน
     const heroKeys = Array.isArray(latest?.heroKeys) ? (latest.heroKeys as string[]) : null
     const ring = heroKeys
@@ -31,7 +31,8 @@ export default async function Home() {
               AND EXISTS (SELECT 1 FROM PhotoFace f WHERE f.photoId = p.id AND f.score >= 0.9)
             ORDER BY RAND() LIMIT ${RING_SIZE}`
         : []
-    const ringUrls = ring.map((r) => publicUrl(r.thumbKey)).filter((u): u is string => Boolean(u))
+    // heroKeys เป็น path ใน public/ (ขึ้นต้นด้วย /) — รูปย่อสุ่มเป็น key ใน Blob
+    const ringUrls = ring.map((r) => (r.thumbKey.startsWith("/") ? r.thumbKey : publicUrl(r.thumbKey))).filter((u): u is string => Boolean(u))
     const totalPhotos = events.reduce((n, e) => n + e._count.photos, 0)
 
     return (

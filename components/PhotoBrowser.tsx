@@ -5,10 +5,14 @@ import type { PhotoCard } from "@/lib/search"
 
 type Mode = "face" | "bib" | "phone"
 
+// ต้องตรงกับ MAX_PHOTOS ใน app/api/photos/zip/route.ts
+const MAX_ZIP = 60
+
 /**
  * แกลเลอรีของงาน + ช่องค้นหา (ใบหน้า / BIB / เบอร์โทร)
  * มีผลค้นหา → แสดงผลค้นหาแทนแกลเลอรี, กด "ดูทั้งหมด" กลับมาแกลเลอรีหน้าปัจจุบัน
  * pagination เป็นของแกลเลอรี — ซ่อนตอนแสดงผลค้นหา (ผลค้นหาไม่แบ่งหน้า)
+ * โหลดรูป: ทีละรูปจากหน้าดูรูป หรือกด "เลือกรูป" เลือกหลายรูปแล้วโหลดเป็น .zip ไฟล์เดียว
  */
 export default function PhotoBrowser({
     slug,
@@ -40,6 +44,22 @@ export default function PhotoBrowser({
     const [message, setMessage] = useState<string | null>(null)
     const [results, setResults] = useState<PhotoCard[] | null>(null)
     const [open, setOpen] = useState<PhotoCard | null>(null)
+    const [selecting, setSelecting] = useState(false)
+    const [selected, setSelected] = useState<Set<string>>(new Set())
+
+    function toggle(id: string) {
+        setSelected((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else if (next.size < MAX_ZIP) next.add(id)
+            return next
+        })
+    }
+
+    function showResults(photos: PhotoCard[] | null) {
+        setResults(photos)
+        setSelected(new Set())
+    }
 
     function pickSelfie(file: File | undefined) {
         if (!file) return
@@ -71,7 +91,7 @@ export default function PhotoBrowser({
             const res = await fetch(`/api/events/${encodeURIComponent(slug)}/search`, { method: "POST", body: fd })
             const j = await res.json()
             if (!res.ok) return setError(j.error ?? "ค้นหาไม่สำเร็จ")
-            setResults(j.photos ?? [])
+            showResults(j.photos ?? [])
             if (j.message) setMessage(j.message)
         } catch {
             setError("เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง")
@@ -144,7 +164,7 @@ export default function PhotoBrowser({
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setResults(null)
+                                    showResults(null)
                                     setMessage(null)
                                 }}
                                 className="text-sm text-ink-soft underline"
@@ -157,22 +177,75 @@ export default function PhotoBrowser({
                 </form>
             )}
 
-            {results && (
-                <p className="text-sm text-ink-soft mt-5 tnum">
-                    {message ?? `พบ ${results.length.toLocaleString("th-TH")} รูป`}
+            <div className="flex items-center justify-between gap-3 mt-5 min-h-9">
+                <p className="text-sm text-ink-soft tnum">
+                    {results && (message ?? `พบ ${results.length.toLocaleString("th-TH")} รูป`)}
                 </p>
-            )}
-
-            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
-                {shown.map((p) => (
-                    <li key={p.id}>
-                        <button onClick={() => setOpen(p)} className="block w-full aspect-[3/2] bg-paper-3 rounded-lg overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element -- รูปย่อจาก Blob ย่อมาแล้ว */}
-                            {p.thumb && <img src={p.thumb} alt="" className="w-full h-full object-cover" loading="lazy" />}
+                {shown.length > 0 && (
+                    <div className="flex items-center gap-2 shrink-0">
+                        {selecting && (
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setSelected(selected.size ? new Set() : new Set(shown.slice(0, MAX_ZIP).map((p) => p.id)))
+                                }
+                                className="h-9 px-3 rounded-lg text-sm text-ink-soft hover:text-ink"
+                            >
+                                {selected.size ? "ล้าง" : `เลือกทั้งหมด${shown.length > MAX_ZIP ? ` (${MAX_ZIP} รูปแรก)` : ""}`}
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSelecting(!selecting)
+                                setSelected(new Set())
+                            }}
+                            className={`h-9 px-4 rounded-lg text-sm font-semibold border ${selecting ? "bg-navy text-white border-navy" : "border-line hover:border-ink"}`}
+                        >
+                            {selecting ? "ยกเลิก" : "เลือกรูป"}
                         </button>
-                    </li>
-                ))}
+                    </div>
+                )}
+            </div>
+
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-3">
+                {shown.map((p) => {
+                    const on = selected.has(p.id)
+                    return (
+                        <li key={p.id}>
+                            <button
+                                onClick={() => (selecting ? toggle(p.id) : setOpen(p))}
+                                aria-pressed={selecting ? on : undefined}
+                                className={`relative block w-full aspect-[3/2] bg-paper-3 rounded-lg overflow-hidden ${on ? "ring-4 ring-move" : ""}`}
+                            >
+                                {/* eslint-disable-next-line @next/next/no-img-element -- รูปย่อจาก Blob ย่อมาแล้ว */}
+                                {p.thumb && <img src={p.thumb} alt="" className={`w-full h-full object-cover transition ${on ? "scale-95 rounded-md" : ""}`} loading="lazy" />}
+                                {selecting && (
+                                    <span
+                                        className={`absolute top-2 right-2 w-7 h-7 rounded-full border-2 inline-flex items-center justify-center text-sm font-bold ${
+                                            on ? "bg-move border-move text-ink" : "bg-black/25 border-white"
+                                        }`}
+                                    >
+                                        {on && "✓"}
+                                    </span>
+                                )}
+                            </button>
+                        </li>
+                    )
+                })}
             </ul>
+
+            {selecting && selected.size > 0 && (
+                // ส่งเป็น form ธรรมดา ให้เบราว์เซอร์โหลด .zip เอง — ไม่ต้องเก็บทั้งไฟล์ไว้ในหน่วยความจำของหน้าเว็บ
+                <form method="post" action="/api/photos/zip" className="sticky bottom-4 z-40 mt-4 flex justify-center pb-safe">
+                    {[...selected].map((id) => (
+                        <input key={id} type="hidden" name="id" value={id} />
+                    ))}
+                    <button className="h-12 px-6 rounded-2xl bg-move text-ink font-bold raise-lg tnum">
+                        ดาวน์โหลด {selected.size.toLocaleString("th-TH")} รูป (.zip)
+                    </button>
+                </form>
+            )}
 
             {!results && pagination}
 

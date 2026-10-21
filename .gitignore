@@ -51,3 +51,6 @@ next-env.d.ts
 
 # Passenger restart.txt
 /tmp/
+
+# รูปชุดหน้าแรก (npm run hero) — รูปนักวิ่ง ไม่ขึ้น repo สาธารณะ
+/public/hero/

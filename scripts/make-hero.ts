@@ -1,16 +1,20 @@
 /**
  * ทำรูปชุดเคลื่อนไหวหน้าแรก (components/PhotoOrbit.tsx) — คัดรูปที่เห็นหน้าชัด กระจายหลายโฟลเดอร์/ช่างภาพ
- * ดึงต้นฉบับจาก Drive ย่อเป็น ~1000px ไม่มีลายน้ำ แล้วเก็บใน Blob ใช้ชุดเดิมทุกครั้ง (เบราว์เซอร์ cache ได้)
+ * ดึงต้นฉบับจาก Drive ย่อเป็น ~1000px ไม่มีลายน้ำ แล้วเก็บไว้ที่ public/hero/<slug>/ ของเซิร์ฟเวอร์
+ * (document root คือ public/ — เว็บเซิร์ฟเวอร์ส่งไฟล์ให้ตรงๆ) ใช้ชุดเดิมทุกครั้งจึง cache ได้
+ * public/hero/ ไม่อยู่ใน git — repo เป็น public ไม่ควรมีรูปนักวิ่ง → ต้องรันคำสั่งนี้บนเซิร์ฟเวอร์เอง
  *
  *   npm run hero -- <slug>          สุ่มชุดใหม่ 24 รูป
  *   npm run hero -- <slug> --clear  กลับไปสุ่มจากรูปย่อทุกครั้งที่เปิดหน้า
  */
 import "dotenv/config"
+import fs from "node:fs"
+import path from "node:path"
 import sharp from "sharp"
 import { Prisma } from "@prisma/client"
 import { prisma } from "../lib/prisma"
 import { downloadFile } from "../lib/drive"
-import { ensureContainer, uploadJpeg } from "../lib/blob"
+import { deletePrefix } from "../lib/blob"
 
 const COUNT = 24
 
@@ -46,7 +50,10 @@ async function main() {
     }
     if (picked.length < 8) throw new Error(`รูปที่เข้าเกณฑ์มีแค่ ${picked.length} รูป — ซิงก์ใบหน้าครบหรือยัง`)
 
-    await ensureContainer()
+    // ล้างชุดเก่าของงานนี้ก่อน
+    const dir = path.join(process.cwd(), "public", "hero", slug)
+    fs.rmSync(dir, { recursive: true, force: true })
+    fs.mkdirSync(dir, { recursive: true })
     const keys: string[] = []
     for (const [i, p] of picked.entries()) {
         const jpeg = await sharp(await downloadFile(p.driveFileId), { failOn: "none" })
@@ -54,12 +61,13 @@ async function main() {
             .resize(1000, 1000, { fit: "inside", withoutEnlargement: true })
             .jpeg({ quality: 78, mozjpeg: true })
             .toBuffer()
-        const key = `${event.id}/hero/${p.id}.jpg`
-        await uploadJpeg(key, jpeg)
-        keys.push(key)
+        fs.writeFileSync(path.join(dir, `${p.id}.jpg`), jpeg)
+        keys.push(`/hero/${slug}/${p.id}.jpg`)
         console.log(`  ${i + 1}/${picked.length} ${(jpeg.length / 1024).toFixed(0)}KB`)
     }
     await prisma.event.update({ where: { id: event.id }, data: { heroKeys: keys } })
+    // ชุดเดิมที่เคยเก็บใน Blob (เวอร์ชันก่อน) ไม่ใช้แล้ว
+    await deletePrefix(`${event.id}/hero/`)
     console.log(`ตั้งชุดรูปหน้าแรกของ ${slug} แล้ว ${keys.length} รูป`)
 }
 
