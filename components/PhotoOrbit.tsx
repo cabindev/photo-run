@@ -11,17 +11,19 @@ import { useEffect, useRef, type ReactNode } from "react"
  * ผู้ใช้ที่ตั้งลดการเคลื่อนไหวจะเห็นตารางรูปจางๆ นิ่ง กับชื่องานทับด้านบน
  */
 
-const CYCLE = 24
+const CYCLE = 26
 // ช่วงเวลาในหนึ่งรอบ (วินาที)
+// ช่วงเปลี่ยนฉากยาวราว 2 วินาที + การ์ดออกตัวเหลื่อมกัน (LAG) ให้ไหลเป็นคลื่น ไม่กระชาก
 const TO_GRID_AT = 6.5 //   แถบเลนส์ → ตาราง
-const GRID_AT = 8.2
-const COLLAPSE_AT = 14 //   ตาราง → รวมเข้ากลางแล้วหาย
-const GONE_AT = 15.5
-const TITLE_IN = [15.2, 16.4] // ชื่องานค่อยๆ ขึ้น
-const TITLE_OUT = [20, 21] //    ชื่องานจางหาย
-const EMERGE_AT = 20.6 //  การ์ดพุ่งออกจากกลางเป็นแถบเลนส์
-const STRIP_AT = 22.2
-const STRIP_SPEED = 0.55 // การ์ดต่อวินาที
+const GRID_AT = 8.7
+const COLLAPSE_AT = 14.5 // ตาราง → รวมเข้ากลางแล้วหาย
+const GONE_AT = 16.3
+const TITLE_IN = [15.8, 17.2] // ชื่องานค่อยๆ ขึ้น
+const TITLE_OUT = [21.2, 22.4] // ชื่องานจางหาย
+const EMERGE_AT = 21.8 //  การ์ดออกจากกลางเป็นแถบเลนส์
+const STRIP_AT = 24
+const LAG = 1.1 //          การ์ดใบสุดท้ายออกตัวช้ากว่าใบแรกกี่วินาที
+const STRIP_SPEED = 0.32 // การ์ดต่อวินาที
 
 type Pose = { x: number; y: number; s: number; r: number; o: number }
 
@@ -55,13 +57,15 @@ export default function PhotoOrbit({ urls, children }: { urls: string[]; childre
         // 1) แถบเลนส์ — x เลื่อนต่อเนื่อง วนรอบเมื่อหลุดขอบ ใบกลางขยาย
         const stripPose = (i: number, t: number): Pose => {
             const size = cardSize()
-            const spacing = size * 0.72
+            // ระยะห่างพอดีกับขนาดที่ขยายแล้ว — การ์ดไม่ซ้อนกัน จึงไม่มีจังหวะสลับชั้นกระโดดตอนผ่านกลางจอ
+            const spacing = size * 1.08
             let p = (((i - t * STRIP_SPEED) % n) + n) % n
             if (p > n / 2) p -= n
             const x = p * spacing
-            const lens = Math.exp(-((x / (spacing * 1.3)) ** 2))
+            // เลนส์กว้าง — ขนาดเปลี่ยนช้าๆ ตลอดทาง ไม่ใช่ขยายพรวดตอนใกล้กลาง
+            const lens = Math.exp(-((x / (spacing * 1.6)) ** 2))
             const edge = clamp01((Math.abs(x) - w * 0.38) / (w * 0.14))
-            return { x, y: 0, s: 0.7 + 0.55 * lens, r: 0, o: 1 - edge }
+            return { x, y: 0, s: 0.82 + 0.3 * lens, r: 0, o: 1 - edge }
         }
 
         // 2) ตารางเอียงแบบเหลื่อม — คอลัมน์คี่เลื่อนลงครึ่งช่อง ทั้งตารางลอยช้าๆ
@@ -95,7 +99,7 @@ export default function PhotoOrbit({ urls, children }: { urls: string[]; childre
                 const card = cards.current[i]
                 if (!card) continue
                 // การ์ดแต่ละใบออกตัวไม่พร้อมกันเล็กน้อย ให้ดูไหลเป็นคลื่น
-                const lag = (i / n) * 0.6
+                const lag = (i / n) * LAG
                 // k: น้ำหนักของตาราง (0 = แถบเลนส์, 1 = ตาราง) — สลับกลับเป็นแถบตอนการ์ดหายไปแล้ว
                 const k = local < COLLAPSE_AT ? ramp(local, TO_GRID_AT + lag, GRID_AT + lag) : local < EMERGE_AT ? 1 : 0
                 // c: การ์ดรวมเข้ากลางแล้วหาย (0 = ปกติ, 1 = หายที่กลางจอ)

@@ -63,13 +63,8 @@ export default async function Home() {
 
             {/* section 2: ค้นหารูป */}
             <section id="search" className="max-w-6xl mx-auto px-4 pt-14 pb-12 text-center scroll-mt-14">
-                <h2 className="display text-3xl sm:text-5xl text-ink">
-                    หารูปตัวเองจากงานวิ่ง
-                    <br />
-                    ด้วยเซลฟี่รูปเดียว
-                </h2>
                 {latest && (
-                    <div className="mt-7 flex flex-col items-center gap-2">
+                    <div className="flex flex-col items-center gap-2">
                         <Link
                             href={`/e/${latest.slug}`}
                             className="h-14 px-8 inline-flex items-center gap-2.5 rounded-2xl bg-move text-ink text-lg font-bold hover:brightness-95 active:scale-[0.98] transition raise"
