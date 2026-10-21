@@ -43,7 +43,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                         </Link>
                         <nav className="flex items-center gap-3 sm:gap-4 text-sm text-ink-soft whitespace-nowrap">
                             <a href={MAIN_SITE_URL} className="hover:text-ink">
-                                ← runludtong<span className="hidden sm:inline">.com</span>
+                                runludtong<span className="hidden sm:inline">.com</span>
                             </a>
                             {admin && <Link href="/admin" className="hover:text-ink">จัดการงาน</Link>}
                             {admin && <span className="hidden sm:inline text-ink-mute truncate max-w-[30vw]">{admin}</span>}
