@@ -5,7 +5,7 @@ import type { PhotoCard } from "@/lib/search"
 import { canShareFiles, fetchOriginal, isShareCancel, noSubscribe } from "@/lib/client-share"
 
 /**
- * ดูรูปเต็มจอ — เลื่อนรูปก่อน/ถัดไป (ปุ่ม, ลูกศรคีย์บอร์ด, ปัดนิ้ว) + แชร์ + ดาวน์โหลด
+ * ดูรูปเต็มจอ — เลื่อนรูปก่อน/ถัดไป (ปุ่ม, ลูกศรคีย์บอร์ด, ปัดนิ้ว) + Download (มุมขวาบน) + แชร์ (ล่าง)
  *
  * แชร์:
  *   - มือถือ: แชร์ไฟล์รูปต้นฉบับผ่านหน้าต่างแชร์ (LINE / Facebook / บันทึกรูปภาพ)
@@ -95,9 +95,19 @@ export default function PhotoViewer({
                 <span>
                     {index + 1} / {photos.length}
                 </span>
-                <button onClick={onClose} aria-label="ปิด" className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white text-xl">
-                    ×
-                </button>
+                <div className="flex items-center gap-2">
+                    <a
+                        href={`/api/photos/${photo.id}/download`}
+                        title="ดาวน์โหลดรูปเต็ม"
+                        className="h-10 px-4 rounded-full bg-white text-ink text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-white/90 active:scale-95 transition"
+                    >
+                        <DownloadIcon />
+                        Download
+                    </a>
+                    <button onClick={onClose} aria-label="ปิด" className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white text-xl">
+                        ×
+                    </button>
+                </div>
             </div>
 
             <div
@@ -148,9 +158,6 @@ export default function PhotoViewer({
                 >
                     {shareFiles && !ready ? <span className="w-5 h-5 rounded-full border-2 border-ink/30 border-t-ink animate-spin" /> : <ShareIcon />}
                 </button>
-                <a href={`/api/photos/${photo.id}/download`} aria-label="ดาวน์โหลดรูปเต็ม" title="ดาวน์โหลดรูปเต็ม" className={`${icon} bg-white text-ink`}>
-                    <DownloadIcon />
-                </a>
                 {shareFiles && (
                     <button onClick={copyLink} aria-label="คัดลอกลิงก์รูปนี้" title="คัดลอกลิงก์" className={`${icon} bg-white/15 text-white hover:bg-white/25`}>
                         <LinkIcon />
@@ -186,7 +193,7 @@ function LinkIcon() {
 
 function DownloadIcon() {
     return (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
         </svg>
     )
