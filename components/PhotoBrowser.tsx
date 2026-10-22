@@ -176,6 +176,11 @@ export default function PhotoBrowser({
     }
 
     const shown = results ?? photos
+    // ปุ่มไอคอนวงกลมหัวตาราง — มี aria-label + title บอกหน้าที่
+    const iconBtn = (on: boolean) =>
+        `w-10 h-10 rounded-full inline-flex items-center justify-center border transition active:scale-90 ${
+            on ? "bg-navy text-white border-navy" : "bg-paper border-line text-ink-soft hover:text-ink hover:border-ink"
+        }`
     const tab = (on: boolean) =>
         `flex-1 h-10 rounded-full text-sm font-semibold transition ${on ? "bg-navy text-white shadow-sm" : "text-ink-soft hover:text-ink"}`
 
@@ -275,12 +280,12 @@ export default function PhotoBrowser({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     {results ? (
-                        <button type="button" onClick={() => showResults(null)} className="h-9 px-3 rounded-full text-sm text-ink-soft hover:text-ink">
-                            ← ตัวอย่างรูป
+                        <button type="button" onClick={() => showResults(null)} aria-label="กลับไปดูตัวอย่างรูป" title="กลับไปดูตัวอย่างรูป" className={iconBtn(false)}>
+                            <BackIcon />
                         </button>
                     ) : (
-                        <button type="button" onClick={() => router.refresh()} className="h-9 px-4 rounded-full text-sm border border-line hover:border-ink">
-                            สุ่มรูปอื่น
+                        <button type="button" onClick={() => router.refresh()} aria-label="สุ่มรูปอื่น" title="สุ่มรูปอื่น" className={iconBtn(false)}>
+                            <ShuffleIcon />
                         </button>
                     )}
                     {shown.length > 0 && (
@@ -290,9 +295,12 @@ export default function PhotoBrowser({
                                 setSelecting(!selecting)
                                 setSelected(new Set())
                             }}
-                            className={`h-9 px-4 rounded-full text-sm font-semibold border ${selecting ? "bg-navy text-white border-navy" : "border-line hover:border-ink"}`}
+                            aria-label={selecting ? "ยกเลิกการเลือกรูป" : "เลือกหลายรูป"}
+                            aria-pressed={selecting}
+                            title={selecting ? "ยกเลิก" : "เลือกหลายรูป"}
+                            className={iconBtn(selecting)}
                         >
-                            {selecting ? "ยกเลิก" : "เลือกรูป"}
+                            {selecting ? <CloseIcon /> : <SelectIcon />}
                         </button>
                     )}
                 </div>
@@ -411,6 +419,51 @@ function SearchIcon() {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.5-3.5" />
+        </svg>
+    )
+}
+
+const iconProps = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+}
+
+function ShuffleIcon() {
+    return (
+        <svg {...iconProps}>
+            <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+        </svg>
+    )
+}
+
+function SelectIcon() {
+    return (
+        <svg {...iconProps}>
+            <rect x="3" y="3" width="18" height="18" rx="4" />
+            <path d="m8 12 3 3 5-6" />
+        </svg>
+    )
+}
+
+function CloseIcon() {
+    return (
+        <svg {...iconProps}>
+            <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
+    )
+}
+
+function BackIcon() {
+    return (
+        <svg {...iconProps}>
+            <path d="M15 18l-6-6 6-6" />
         </svg>
     )
 }

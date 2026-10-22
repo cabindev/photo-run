@@ -86,7 +86,8 @@ export default function PhotoViewer({
         }
     }
 
-    const btn = "h-11 px-4 inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition active:scale-[0.97]"
+    // ปุ่มไอคอนวงกลม — มี aria-label + title ให้รู้ว่าปุ่มทำอะไร
+    const icon = "w-12 h-12 rounded-full inline-flex items-center justify-center transition active:scale-90 disabled:opacity-60"
 
     return (
         <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm flex flex-col" onClick={onClose} role="dialog" aria-modal="true">
@@ -137,20 +138,22 @@ export default function PhotoViewer({
                 )}
             </div>
 
-            <div className="p-3 pb-safe flex flex-col items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                <div className="flex gap-2 w-full max-w-md">
-                    <button onClick={share} disabled={shareFiles && !ready} className={`${btn} flex-1 bg-move text-ink disabled:opacity-70`}>
-                        <ShareIcon />
-                        {shareFiles && !ready ? "กำลังเตรียม…" : "แชร์"}
-                    </button>
-                    <a href={`/api/photos/${photo.id}/download`} className={`${btn} flex-1 bg-white text-ink`}>
-                        <DownloadIcon />
-                        ดาวน์โหลด
-                    </a>
-                </div>
+            <div className="p-4 pb-safe flex items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
+                <button
+                    onClick={share}
+                    disabled={shareFiles && !ready}
+                    aria-label={shareFiles && !ready ? "กำลังเตรียมรูปสำหรับแชร์" : "แชร์"}
+                    title="แชร์"
+                    className={`${icon} bg-move text-ink`}
+                >
+                    {shareFiles && !ready ? <span className="w-5 h-5 rounded-full border-2 border-ink/30 border-t-ink animate-spin" /> : <ShareIcon />}
+                </button>
+                <a href={`/api/photos/${photo.id}/download`} aria-label="ดาวน์โหลดรูปเต็ม" title="ดาวน์โหลดรูปเต็ม" className={`${icon} bg-white text-ink`}>
+                    <DownloadIcon />
+                </a>
                 {shareFiles && (
-                    <button onClick={copyLink} className="text-xs text-white/60 underline">
-                        คัดลอกลิงก์รูปนี้
+                    <button onClick={copyLink} aria-label="คัดลอกลิงก์รูปนี้" title="คัดลอกลิงก์" className={`${icon} bg-white/15 text-white hover:bg-white/25`}>
+                        <LinkIcon />
                     </button>
                 )}
             </div>
@@ -166,15 +169,24 @@ export default function PhotoViewer({
 
 function ShareIcon() {
     return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+        </svg>
+    )
+}
+
+function LinkIcon() {
+    return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+            <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
         </svg>
     )
 }
 
 function DownloadIcon() {
     return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
         </svg>
     )
