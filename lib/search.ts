@@ -17,19 +17,33 @@ function toCard(p: { id: string; thumbKey: string | null; previewKey: string | n
     return { id: p.id, thumb: publicUrl(p.thumbKey), preview: publicUrl(p.previewKey), width: p.width, height: p.height }
 }
 
-export async function listPhotos(eventId: string, page: number, perPage = 60): Promise<{ photos: PhotoCard[]; total: number }> {
-    const where = { eventId, status: "PROCESSED" as const }
-    const [rows, total] = await Promise.all([
-        prisma.photo.findMany({
-            where,
-            select,
-            orderBy: [{ takenAt: "asc" }, { filename: "asc" }],
-            skip: (page - 1) * perPage,
-            take: perPage,
-        }),
-        prisma.photo.count({ where }),
-    ])
+/**
+ * ตัวอย่างรูปในงานแบบสุ่ม (ใต้ช่องค้นหา) — เลือกรูปที่เห็นหน้าชัด ดูน่าสนใจกว่าเรียงตามเวลา
+ * (เรียงตามเวลา หน้าแรกเป็นโต๊ะรับ BIB ซ้ำๆ) — งานที่ยังไม่มีข้อมูลใบหน้าสุ่มจากทุกรูป
+ */
+export async function samplePhotos(eventId: string, count = 24): Promise<{ photos: PhotoCard[]; total: number }> {
+    const total = await prisma.photo.count({ where: { eventId, status: "PROCESSED" } })
+    let rows = await prisma.$queryRaw<Parameters<typeof toCard>[0][]>`
+        SELECT p.id, p.thumbKey, p.previewKey, p.width, p.height FROM Photo p
+        WHERE p.eventId = ${eventId} AND p.status = 'PROCESSED'
+          AND EXISTS (SELECT 1 FROM PhotoFace f WHERE f.photoId = p.id AND f.score >= 0.9)
+        ORDER BY RAND() LIMIT ${count}`
+    if (rows.length < count) {
+        rows = await prisma.$queryRaw<Parameters<typeof toCard>[0][]>`
+            SELECT id, thumbKey, previewKey, width, height FROM Photo
+            WHERE eventId = ${eventId} AND status = 'PROCESSED'
+            ORDER BY RAND() LIMIT ${count}`
+    }
     return { photos: rows.map(toCard), total }
+}
+
+/** รูปเดียวสำหรับหน้าแชร์ /p/[id] — เฉพาะงานที่เผยแพร่แล้ว */
+export async function getSharedPhoto(id: string) {
+    const p = await prisma.photo.findFirst({
+        where: { id, status: "PROCESSED", event: { isPublished: true } },
+        select: { ...select, filename: true, event: { select: { name: true, slug: true, eventDate: true } } },
+    })
+    return p ? { ...toCard(p), filename: p.filename, event: p.event } : null
 }
 
 export async function searchByBibs(eventId: string, bibs: string[]): Promise<PhotoCard[]> {

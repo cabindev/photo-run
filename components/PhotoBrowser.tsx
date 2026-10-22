@@ -1,7 +1,10 @@
 "use client"
 
 import { useRef, useState, useSyncExternalStore } from "react"
+import { useRouter } from "next/navigation"
 import type { PhotoCard } from "@/lib/search"
+import { canShareFiles, fetchOriginal, isShareCancel, noSubscribe } from "@/lib/client-share"
+import PhotoViewer from "@/components/PhotoViewer"
 
 type Mode = "face" | "bib" | "phone"
 
@@ -32,48 +35,35 @@ async function toJpeg(file: File): Promise<File | null> {
     }
 }
 
-// มือถือที่แชร์ไฟล์ได้ — คอมบางเครื่อง (Chrome บน Mac) ก็แชร์ได้ แต่บนคอม .zip สะดวกกว่า จึงดูจอสัมผัสด้วย
-// ค่าไม่เปลี่ยนระหว่างใช้งาน ฝั่งเซิร์ฟเวอร์ถือว่าไม่ได้
-function canShareFiles(): boolean {
-    if (!window.matchMedia("(pointer: coarse)").matches) return false
-    const probe = new File([new Blob()], "x.jpg", { type: "image/jpeg" })
-    return typeof navigator.canShare === "function" && navigator.canShare({ files: [probe] })
-}
-const noSubscribe = () => () => {}
-
-function filenameFrom(res: Response, fallback: string): string {
-    const m = res.headers.get("content-disposition")?.match(/filename\*=UTF-8''([^;]+)/)
-    return m ? decodeURIComponent(m[1]) : fallback
-}
-
 /**
- * แกลเลอรีของงาน + ช่องค้นหา (ใบหน้า / BIB / เบอร์โทร)
- * มีผลค้นหา → แสดงผลค้นหาแทนแกลเลอรี, กด "ดูทั้งหมด" กลับมาแกลเลอรีหน้าปัจจุบัน
- * pagination เป็นของแกลเลอรี — ซ่อนตอนแสดงผลค้นหา (ผลค้นหาไม่แบ่งหน้า)
- * โหลดรูป: ทีละรูปจากหน้าดูรูป หรือกด "เลือกรูป" เลือกหลายรูปแล้ว
- *   - มือถือ (รองรับแชร์ไฟล์): บันทึกลงเครื่องผ่านหน้าต่างแชร์ — iPhone เลือก "บันทึกรูปภาพ" เข้าแอปรูปภาพได้ทันที
+ * ช่องค้นหา (ใบหน้า / BIB / เบอร์โทร) + ตัวอย่างรูปแบบสุ่ม / ผลค้นหา
+ * แตะรูป → PhotoViewer (เลื่อนดู แชร์ ดาวน์โหลดทีละรูป)
+ * "เลือกรูป" เลือกหลายรูปแล้ว
+ *   - มือถือ (รองรับแชร์ไฟล์): บันทึก/แชร์ผ่านหน้าต่างแชร์ — iPhone เลือก "บันทึกรูปภาพ" เข้าแอปรูปภาพได้ทันที
  *   - คอม: โหลดเป็น .zip ไฟล์เดียว (zip บนมือถือต้องไปแตกไฟล์เอง ไม่สะดวก)
  */
 export default function PhotoBrowser({
     slug,
+    eventName,
     photos,
     faceEnabled,
     facesPurgeAt,
     bibEnabled,
     phoneEnabled,
-    pagination,
 }: {
     slug: string
+    eventName: string
+    /** ตัวอย่างรูปแบบสุ่มจากเซิร์ฟเวอร์ — "สุ่มรูปอื่น" = router.refresh() */
     photos: PhotoCard[]
     faceEnabled: boolean
     /** วันที่ลบข้อมูลใบหน้าของงาน (ข้อความภาษาไทยแล้ว) — แจ้งผู้ใช้ตาม PDPA */
     facesPurgeAt: string | null
     bibEnabled: boolean
     phoneEnabled: boolean
-    pagination?: React.ReactNode
 }) {
+    const router = useRouter()
     const modes: { id: Mode; label: string }[] = [
-        ...(faceEnabled ? [{ id: "face" as const, label: "ใบหน้า" }] : []),
+        ...(faceEnabled ? [{ id: "face" as const, label: "เซลฟี่" }] : []),
         ...(bibEnabled ? [{ id: "bib" as const, label: "เลข BIB" }] : []),
         ...(phoneEnabled ? [{ id: "phone" as const, label: "เบอร์โทร" }] : []),
     ]
@@ -82,11 +72,12 @@ export default function PhotoBrowser({
     const [consent, setConsent] = useState(false)
     const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
     const selfieRef = useRef<File | null>(null)
+    const resultsRef = useRef<HTMLDivElement>(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [message, setMessage] = useState<string | null>(null)
     const [results, setResults] = useState<PhotoCard[] | null>(null)
-    const [open, setOpen] = useState<PhotoCard | null>(null)
+    const [openIndex, setOpenIndex] = useState<number | null>(null)
     const [selecting, setSelecting] = useState(false)
     const [selected, setSelected] = useState<Set<string>>(new Set())
     // รูปที่โหลดเตรียมไว้แล้วสำหรับหน้าต่างแชร์ — share() ต้องเรียกตรงจากการกดปุ่ม จึงแยกเป็นสองขั้น
@@ -98,15 +89,12 @@ export default function PhotoBrowser({
 
     async function prepareShare() {
         const selection = selected
-        const ids = [...selection]
         setPreparing(0)
         setError(null)
         try {
             const files: File[] = []
-            for (const id of ids) {
-                const res = await fetch(`/api/photos/${id}/download`)
-                if (!res.ok) throw new Error(String(res.status))
-                files.push(new File([await res.blob()], filenameFrom(res, `${id}.jpg`), { type: "image/jpeg" }))
+            for (const id of selection) {
+                files.push(await fetchOriginal(id))
                 setPreparing(files.length)
             }
             setPreparedFor({ selection, files })
@@ -120,12 +108,11 @@ export default function PhotoBrowser({
     async function share() {
         if (!prepared) return
         try {
-            await navigator.share({ files: prepared })
+            await navigator.share({ files: prepared, title: `รูปงาน ${eventName}` })
             setSelected(new Set())
             setSelecting(false)
         } catch (e) {
-            // ผู้ใช้กดยกเลิกหน้าต่างแชร์ — ไม่ใช่ข้อผิดพลาด
-            if (!(e instanceof DOMException && e.name === "AbortError")) setError("บันทึกไม่สำเร็จ ลองโหลดเป็น .zip หรือทีละรูป")
+            if (!isShareCancel(e)) setError("บันทึกไม่สำเร็จ ลองโหลดเป็น .zip หรือทีละรูป")
         }
     }
 
@@ -138,9 +125,10 @@ export default function PhotoBrowser({
         })
     }
 
-    function showResults(photos: PhotoCard[] | null) {
-        setResults(photos)
+    function showResults(found: PhotoCard[] | null) {
+        setResults(found)
         setSelected(new Set())
+        setSelecting(false)
     }
 
     async function pickSelfie(picked: File | undefined) {
@@ -178,6 +166,8 @@ export default function PhotoBrowser({
             if (!res.ok) return setError(j.error ?? "ค้นหาไม่สำเร็จ")
             showResults(j.photos ?? [])
             if (j.message) setMessage(j.message)
+            // มือถือ: ผลอยู่ใต้ช่องค้นหา — เลื่อนลงให้เห็นทันที
+            requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))
         } catch {
             setError("เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง")
         } finally {
@@ -186,132 +176,160 @@ export default function PhotoBrowser({
     }
 
     const shown = results ?? photos
+    const tab = (on: boolean) =>
+        `flex-1 h-10 rounded-full text-sm font-semibold transition ${on ? "bg-navy text-white shadow-sm" : "text-ink-soft hover:text-ink"}`
 
     return (
         <>
             {mode && (
-                <form onSubmit={search} className="bg-paper rounded-2xl raise p-4 mt-5 space-y-3">
-                    <div className="flex gap-1 bg-paper-2 rounded-xl p-1 w-fit">
-                        {modes.map((m) => (
-                            <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => {
-                                    setMode(m.id)
-                                    setError(null)
-                                }}
-                                className={`px-4 h-9 rounded-lg text-sm ${mode === m.id ? "bg-paper raise font-semibold" : "text-ink-soft"}`}
-                            >
-                                {m.label}
-                            </button>
-                        ))}
-                    </div>
+                <form onSubmit={search} className="relative -mt-16 sm:-mt-20 max-w-xl mx-auto bg-paper rounded-3xl raise-lg p-5 sm:p-6 space-y-4">
+                    <p className="text-center font-semibold">หารูปของคุณ</p>
+                    {modes.length > 1 && (
+                        <div className="flex gap-1 bg-paper-2 rounded-full p-1">
+                            {modes.map((m) => (
+                                <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setMode(m.id)
+                                        setError(null)
+                                    }}
+                                    className={tab(mode === m.id)}
+                                >
+                                    {m.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {mode === "face" ? (
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-3">
-                                {/* eslint-disable-next-line @next/next/no-img-element -- object URL ของไฟล์ในเครื่อง */}
-                                {selfiePreview && <img src={selfiePreview} alt="" className="w-16 h-16 rounded-xl object-cover" />}
-                                <label className="h-11 px-4 inline-flex items-center rounded-xl border border-line text-sm cursor-pointer hover:border-ink">
-                                    {selfiePreview ? "เปลี่ยนรูป" : "ถ่ายเซลฟี่ / เลือกรูป"}
-                                    <input
-                                        type="file"
-                                        accept="image/*,.heic,.heif"
-                                        capture="user"
-                                        className="sr-only"
-                                        onChange={(e) => pickSelfie(e.target.files?.[0])}
-                                    />
-                                </label>
-                            </div>
-                            <label className="flex items-start gap-2 text-xs text-ink-soft">
-                                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
+                        <>
+                            <label className="group flex items-center gap-4 rounded-2xl border-2 border-dashed border-line hover:border-navy bg-paper-2/60 p-4 cursor-pointer transition">
+                                {selfiePreview ? (
+                                    // eslint-disable-next-line @next/next/no-img-element -- object URL ของไฟล์ในเครื่อง
+                                    <img src={selfiePreview} alt="" className="w-16 h-16 rounded-full object-cover ring-4 ring-move shrink-0" />
+                                ) : (
+                                    <span className="w-16 h-16 rounded-full bg-navy text-white inline-flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                                        <CameraIcon />
+                                    </span>
+                                )}
+                                <span className="min-w-0">
+                                    <span className="block font-semibold">{selfiePreview ? "เปลี่ยนรูปเซลฟี่" : "ถ่ายเซลฟี่ หรือเลือกรูป"}</span>
+                                    <span className="block text-xs text-ink-mute mt-0.5">หน้าตรง เห็นหน้าชัด ไม่ใส่แว่นดำ</span>
+                                </span>
+                                <input
+                                    type="file"
+                                    accept="image/*,.heic,.heif"
+                                    capture="user"
+                                    className="sr-only"
+                                    onChange={(e) => pickSelfie(e.target.files?.[0])}
+                                />
+                            </label>
+                            <label className="flex items-start gap-2.5 text-xs text-ink-soft leading-relaxed">
+                                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 w-4 h-4 accent-navy shrink-0" />
                                 <span>
                                     ยินยอมให้ใช้ภาพใบหน้านี้เพื่อค้นหารูปของฉันในงานนี้เท่านั้น — ระบบไม่บันทึกรูปเซลฟี่ไว้
                                     {facesPurgeAt && ` · ข้อมูลใบหน้าในรูปงานจะถูกลบภายใน ${facesPurgeAt}`}
                                 </span>
                             </label>
-                        </div>
+                        </>
                     ) : (
                         <div className="space-y-1.5">
-                            <input
-                                value={value}
-                                onChange={(e) => setValue(e.target.value)}
-                                inputMode={mode === "phone" ? "tel" : "text"}
-                                placeholder={mode === "bib" ? "เช่น M-060" : "เบอร์ที่ใช้สมัคร"}
-                                className="w-full sm:max-w-xs h-11 px-3 rounded-xl border border-line text-[15px] bg-transparent focus:outline-none focus:border-ink"
-                            />
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-mute">
+                                    <SearchIcon />
+                                </span>
+                                <input
+                                    value={value}
+                                    onChange={(e) => setValue(e.target.value)}
+                                    inputMode={mode === "phone" ? "tel" : "text"}
+                                    placeholder={mode === "bib" ? "เลข BIB เช่น 134" : "เบอร์ที่ใช้สมัคร"}
+                                    className="w-full h-14 pl-12 pr-4 rounded-2xl border-2 border-line bg-paper text-lg tnum focus:outline-none focus:border-navy"
+                                />
+                            </div>
                             {mode === "bib" && (
                                 <p className="text-xs text-ink-mute">
-                                    ผลอาจมีรูปของคนที่ใช้เลขเดียวกันต่างระยะ/เพศ{faceEnabled && " — ค้นด้วยใบหน้าจะแม่นกว่า"}
+                                    ผลอาจมีรูปของคนที่ใช้เลขเดียวกันต่างระยะ/เพศ{faceEnabled && " — ค้นด้วยเซลฟี่จะแม่นกว่า"}
                                 </p>
                             )}
                         </div>
                     )}
 
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <button disabled={loading} className="h-11 px-6 rounded-xl bg-navy text-white hover:bg-navy-deep text-sm font-semibold disabled:opacity-50">
-                            {loading ? "กำลังค้นหา..." : "ค้นหารูป"}
-                        </button>
-                        {results && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    showResults(null)
-                                    setMessage(null)
-                                }}
-                                className="text-sm text-ink-soft underline"
-                            >
-                                ดูรูปทั้งหมด
-                            </button>
-                        )}
-                    </div>
-                    {error && <p className="text-sm text-danger">{error}</p>}
+                    <button
+                        disabled={loading}
+                        className="w-full h-14 rounded-2xl bg-move text-ink text-base font-bold inline-flex items-center justify-center gap-2 hover:brightness-95 active:scale-[0.99] transition disabled:opacity-70"
+                    >
+                        {loading ? <Spinner /> : <SearchIcon />}
+                        {loading ? "กำลังค้นหา…" : "ค้นหารูปของฉัน"}
+                    </button>
+                    {error && <p className="text-sm text-danger text-center">{error}</p>}
                 </form>
             )}
 
-            <div className="flex items-center justify-between gap-3 mt-5 min-h-9">
-                <p className="text-sm text-ink-soft tnum">
-                    {results && (message ?? `พบ ${results.length.toLocaleString("th-TH")} รูป`)}
-                </p>
-                {shown.length > 0 && (
-                    <div className="flex items-center gap-2 shrink-0">
-                        {selecting && (
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setSelected(selected.size ? new Set() : new Set(shown.slice(0, MAX_ZIP).map((p) => p.id)))
-                                }
-                                className="h-9 px-3 rounded-lg text-sm text-ink-soft hover:text-ink"
-                            >
-                                {selected.size ? "ล้าง" : `เลือกทั้งหมด${shown.length > MAX_ZIP ? ` (${MAX_ZIP} รูปแรก)` : ""}`}
-                            </button>
-                        )}
+            <div ref={resultsRef} className="flex items-end justify-between gap-3 mt-10 scroll-mt-20">
+                <div className="min-w-0">
+                    <p className="eyebrow">{results ? "ผลการค้นหา" : "ตัวอย่างรูปในงาน"}</p>
+                    <p className="font-semibold mt-0.5 tnum">
+                        {results ? (message ?? `พบ ${results.length.toLocaleString("th-TH")} รูป`) : "สุ่มมาให้ดู — ค้นด้วยเซลฟี่เพื่อหารูปของคุณ"}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    {results ? (
+                        <button type="button" onClick={() => showResults(null)} className="h-9 px-3 rounded-full text-sm text-ink-soft hover:text-ink">
+                            ← ตัวอย่างรูป
+                        </button>
+                    ) : (
+                        <button type="button" onClick={() => router.refresh()} className="h-9 px-4 rounded-full text-sm border border-line hover:border-ink">
+                            สุ่มรูปอื่น
+                        </button>
+                    )}
+                    {shown.length > 0 && (
                         <button
                             type="button"
                             onClick={() => {
                                 setSelecting(!selecting)
                                 setSelected(new Set())
                             }}
-                            className={`h-9 px-4 rounded-lg text-sm font-semibold border ${selecting ? "bg-navy text-white border-navy" : "border-line hover:border-ink"}`}
+                            className={`h-9 px-4 rounded-full text-sm font-semibold border ${selecting ? "bg-navy text-white border-navy" : "border-line hover:border-ink"}`}
                         >
                             {selecting ? "ยกเลิก" : "เลือกรูป"}
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
-            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-3">
-                {shown.map((p) => {
+            {selecting && (
+                <div className="flex items-center justify-between mt-3 text-sm text-ink-soft">
+                    <span className="tnum">เลือกแล้ว {selected.size.toLocaleString("th-TH")} รูป</span>
+                    <button
+                        type="button"
+                        onClick={() => setSelected(selected.size ? new Set() : new Set(shown.slice(0, MAX_ZIP).map((p) => p.id)))}
+                        className="underline"
+                    >
+                        {selected.size ? "ล้าง" : `เลือกทั้งหมด${shown.length > MAX_ZIP ? ` (${MAX_ZIP} รูปแรก)` : ""}`}
+                    </button>
+                </div>
+            )}
+
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 mt-4">
+                {shown.map((p, i) => {
                     const on = selected.has(p.id)
                     return (
                         <li key={p.id}>
                             <button
-                                onClick={() => (selecting ? toggle(p.id) : setOpen(p))}
+                                onClick={() => (selecting ? toggle(p.id) : setOpenIndex(i))}
                                 aria-pressed={selecting ? on : undefined}
-                                className={`relative block w-full aspect-[3/2] bg-paper-3 rounded-lg overflow-hidden ${on ? "ring-4 ring-move" : ""}`}
+                                className={`group relative block w-full aspect-[4/3] bg-paper-3 rounded-2xl overflow-hidden ${on ? "ring-4 ring-move" : ""}`}
                             >
-                                {/* eslint-disable-next-line @next/next/no-img-element -- รูปย่อจาก Blob ย่อมาแล้ว */}
-                                {p.thumb && <img src={p.thumb} alt="" className={`w-full h-full object-cover transition ${on ? "scale-95 rounded-md" : ""}`} loading="lazy" />}
+                                {p.thumb && (
+                                    // eslint-disable-next-line @next/next/no-img-element -- รูปย่อจาก Blob ย่อมาแล้ว
+                                    <img
+                                        src={p.thumb}
+                                        alt=""
+                                        loading="lazy"
+                                        className={`w-full h-full object-cover transition duration-300 ${on ? "scale-95 rounded-xl" : "group-hover:scale-105"}`}
+                                    />
+                                )}
                                 {selecting && (
                                     <span
                                         className={`absolute top-2 right-2 w-7 h-7 rounded-full border-2 inline-flex items-center justify-center text-sm font-bold ${
@@ -327,6 +345,10 @@ export default function PhotoBrowser({
                 })}
             </ul>
 
+            {results && results.length === 0 && (
+                <p className="text-center text-ink-mute py-10">ไม่พบรูป ลองเซลฟี่ใหม่ให้เห็นหน้าชัดขึ้น{bibEnabled && " หรือค้นด้วยเลข BIB"}</p>
+            )}
+
             {selecting && selected.size > 0 && (
                 // .zip ส่งเป็น form ธรรมดา ให้เบราว์เซอร์โหลดเอง — ไม่ต้องเก็บทั้งไฟล์ไว้ในหน่วยความจำของหน้าเว็บ
                 <form method="post" action="/api/photos/zip" className="sticky bottom-4 z-40 mt-4 flex flex-col items-center gap-2 pb-safe">
@@ -337,7 +359,7 @@ export default function PhotoBrowser({
                         <>
                             {prepared ? (
                                 <button type="button" onClick={share} className="h-12 px-6 rounded-2xl bg-move text-ink font-bold raise-lg tnum">
-                                    บันทึก {prepared.length.toLocaleString("th-TH")} รูปลงเครื่อง
+                                    บันทึก / แชร์ {prepared.length.toLocaleString("th-TH")} รูป
                                 </button>
                             ) : (
                                 <button
@@ -368,22 +390,31 @@ export default function PhotoBrowser({
                 </form>
             )}
 
-            {!results && pagination}
-
-            {open && (
-                <div className="fixed inset-0 z-50 bg-black/85 flex flex-col" onClick={() => setOpen(null)}>
-                    <div className="flex justify-end gap-2 p-3" onClick={(e) => e.stopPropagation()}>
-                        <a href={`/api/photos/${open.id}/download`} className="h-10 px-4 inline-flex items-center rounded-xl bg-move text-ink text-sm font-semibold">
-                            ดาวน์โหลดรูปเต็ม
-                        </a>
-                        <button onClick={() => setOpen(null)} className="h-10 px-4 rounded-xl bg-white/15 text-white text-sm">ปิด</button>
-                    </div>
-                    <div className="flex-1 min-h-0 flex items-center justify-center p-3">
-                        {/* eslint-disable-next-line @next/next/no-img-element -- รูปพรีวิวมีลายน้ำจาก Blob */}
-                        {open.preview && <img src={open.preview} alt="" className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()} />}
-                    </div>
-                </div>
+            {openIndex !== null && shown[openIndex] && (
+                <PhotoViewer photos={shown} index={openIndex} eventName={eventName} onIndex={setOpenIndex} onClose={() => setOpenIndex(null)} />
             )}
         </>
     )
+}
+
+function CameraIcon() {
+    return (
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+            <circle cx="12" cy="13" r="3.5" />
+        </svg>
+    )
+}
+
+function SearchIcon() {
+    return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+        </svg>
+    )
+}
+
+function Spinner() {
+    return <span className="w-5 h-5 rounded-full border-2 border-ink/30 border-t-ink animate-spin" aria-hidden="true" />
 }

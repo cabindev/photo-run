@@ -1,15 +1,12 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { publicUrl } from "@/lib/blob"
 import { isFaceModelReady } from "@/lib/face"
-import { isPhoneLookupConfigured, listPhotos } from "@/lib/search"
+import { isPhoneLookupConfigured, samplePhotos } from "@/lib/search"
 import PhotoBrowser from "@/components/PhotoBrowser"
 
 export const dynamic = "force-dynamic"
-
-const PER_PAGE = 60
 
 async function getEvent(slug: string) {
     const event = await prisma.event.findUnique({ where: { slug } })
@@ -36,42 +33,48 @@ export async function generateMetadata({ params }: PageProps<"/e/[slug]">): Prom
     }
 }
 
-export default async function EventPage({ params, searchParams }: PageProps<"/e/[slug]">) {
+export default async function EventPage({ params }: PageProps<"/e/[slug]">) {
     const { slug } = await params
     const event = await getEvent(slug)
     if (!event) notFound()
 
-    const page = Math.max(1, Number((await searchParams).page) || 1)
-    const { photos, total } = await listPhotos(event.id, page, PER_PAGE)
-    const pages = Math.max(1, Math.ceil(total / PER_PAGE))
+    const { photos, total } = await samplePhotos(event.id)
     const hasFaces = event.faceSearchEnabled && isFaceModelReady() && (await prisma.photoFace.count({ where: { photo: { eventId: event.id } }, take: 1 })) > 0
+    const cover = publicUrl(event.coverKey)
 
     return (
-        <div className="max-w-6xl mx-auto px-4 py-6">
-            <p className="eyebrow">
-                {event.eventDate?.toLocaleDateString("th-TH", { dateStyle: "long", timeZone: "Asia/Bangkok" })}
-                {event.organizer && ` · ${event.organizer}`}
-            </p>
-            <h1 className="display text-2xl sm:text-3xl mt-1">{event.name}</h1>
-            <p className="text-sm text-ink-mute mt-1 tnum">{total.toLocaleString("th-TH")} รูป</p>
+        <>
+            {/* แถบหัวงาน — รูปปกจางๆ บนพื้นกรมท่า ช่องค้นหาลอยทับขอบล่าง */}
+            <section className="relative bg-navy-deep text-white overflow-hidden">
+                {cover && (
+                    // eslint-disable-next-line @next/next/no-img-element -- รูปปกจาก Blob
+                    <img src={cover} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 blur-[2px] scale-105" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-b from-navy-deep/40 via-navy-deep/70 to-navy-deep" />
+                <div className="relative max-w-3xl mx-auto px-4 pt-10 pb-24 sm:pt-14 sm:pb-28 text-center">
+                    <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/60">
+                        {event.eventDate?.toLocaleDateString("th-TH", { dateStyle: "long", timeZone: "Asia/Bangkok" })}
+                        {event.organizer && ` · ${event.organizer}`}
+                    </p>
+                    <h1 className="display text-3xl sm:text-5xl mt-2">{event.name}</h1>
+                    <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 h-7 text-xs tnum text-white/80">
+                        <span className="w-1.5 h-1.5 rounded-full bg-move" />
+                        {total.toLocaleString("th-TH")} รูป · โหลดฟรี
+                    </p>
+                </div>
+            </section>
 
-            <PhotoBrowser
-                slug={event.slug}
-                photos={photos}
-                faceEnabled={hasFaces}
-                facesPurgeAt={event.purgeFacesAt?.toLocaleDateString("th-TH", { dateStyle: "long", timeZone: "Asia/Bangkok" }) ?? null}
-                bibEnabled={event.bibOcrEnabled}
-                phoneEnabled={isPhoneLookupConfigured()}
-                pagination={
-                    pages > 1 && (
-                        <nav className="flex items-center justify-center gap-2 mt-8 text-sm tnum">
-                            {page > 1 && <Link href={`?page=${page - 1}`} className="px-3 h-9 inline-flex items-center rounded-lg bg-paper border border-line">ก่อนหน้า</Link>}
-                            <span className="text-ink-mute px-2">หน้า {page} / {pages}</span>
-                            {page < pages && <Link href={`?page=${page + 1}`} className="px-3 h-9 inline-flex items-center rounded-lg bg-paper border border-line">ถัดไป</Link>}
-                        </nav>
-                    )
-                }
-            />
-        </div>
+            <div className="max-w-6xl mx-auto px-4 pb-12">
+                <PhotoBrowser
+                    slug={event.slug}
+                    eventName={event.name}
+                    photos={photos}
+                    faceEnabled={hasFaces}
+                    facesPurgeAt={event.purgeFacesAt?.toLocaleDateString("th-TH", { dateStyle: "long", timeZone: "Asia/Bangkok" }) ?? null}
+                    bibEnabled={event.bibOcrEnabled}
+                    phoneEnabled={isPhoneLookupConfigured()}
+                />
+            </div>
+        </>
     )
 }
